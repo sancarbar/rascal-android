@@ -3,6 +3,9 @@ module Main
 import IO;
 import lang::html::IO;
 import Set;
+import Location;
+//import String;
+//import Node;
 //import util::ValueUI;
 
 anno str node@id;
@@ -36,4 +39,30 @@ public set[str] getPackageUrls(loc packageSummaryUrl) {
 	}
 	
 	return urlSet;
+}
+
+public set[str] getClassesUrls(str packageURL)
+{
+	//add reference to the base url
+	packageUrlTotal = |http://developer.android.com|; 
+	packageUrlTotal += packageURL;
+	node packageFile = readHTMLFile(packageUrlTotal);
+	
+	set[str] classUrlSet = {};
+	
+	visit(packageFile){
+	 case parent:"div"(table): if((parent@id ? "missing") == "jd-content")
+	 {
+	 	visit(table){
+
+				case alink:"a"(_): if((alink@href ? "") != "") {
+
+					classUrlSet += {alink@href};
+				}
+	 	};
+	 }
+	};
+
+	return classUrlSet;
+	//contains pause() and resume() at some links, contains an license.html
 }
