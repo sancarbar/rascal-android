@@ -2,14 +2,24 @@ module Main
 
 import IO;
 import lang::html::IO;
+import Set;
 //import util::ValueUI;
 
 anno str node@id;
 anno str node@href;
 
-public void main(){
+// |http://developer.android.com/reference/packages.html|
+
+public void main(loc packageSummaryUrl){
+	println(getPackageUrls(packageSummaryUrl));		
+}
+
+
+public set[str] getPackageUrls(loc packageSummaryUrl) {
 	// Read html file as Node.
-	node html = readHTMLFile(|http://developer.android.com/reference/packages.html|);
+	node html = readHTMLFile(packageSummaryUrl);
+	
+	set[str] urlSet = {};
 	
 	// Get parent div with list of anchors.
 	visit(html) {
@@ -17,11 +27,13 @@ public void main(){
 			// Get anchors.
 			visit(ulist) {
 				// Get only links for android API packages.
-				case alink:"a"(_): if(/\/reference\/android\// := (alink@href ? "")) {
+				case alink:"a"(_): if((alink@href ? "") != "") {
 					// Print anchors.
-					println(alink@href);
+					urlSet += {alink@href};
 				}
 			}
 		}
-	}	
+	}
+	
+	return urlSet;
 }
