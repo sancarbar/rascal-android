@@ -1,0 +1,8 @@
+/bin
+
+#Eclipse files
+.classpath
+.project
+.settings/
+/META-INF/
+/build.properties
