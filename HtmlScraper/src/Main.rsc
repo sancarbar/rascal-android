@@ -2,28 +2,26 @@ module Main
 
 import IO;
 import lang::html::IO;
-import List;
+//import util::ValueUI;
 
 anno str node@id;
+anno str node@href;
 
 public void main(){
-	html = readHTMLFile(|http://developer.android.com/reference/android/package-summary.html|);
+	// Read html file as Node.
+	node html = readHTMLFile(|http://developer.android.com/reference/packages.html|);
+	
+	// Get parent div with list of anchors.
 	visit(html) {
-     case "body"(bodyNode):{ 
-     	for(element <- bodyNode){
-     		visit(html) {
-     		case element:"div"(d): {  
-     			if(element@id == "body-content"){
-     					println("element:  <element>");
-     					visit(element) {
-     					case element:"div"(e2): {
-     						for(a <- e2) println("a <a>");
-     						}
-     					};
-     				}
-	     		}
-     		};
-     	}
-     }   
-   };
+		case parent:"div"(ulist): if((parent@id ? "missing") == "packages-nav") {
+			// Get anchors.
+			visit(ulist) {
+				// Get only links for android API packages.
+				case alink:"a"(_): if(/\/reference\/android\// := (alink@href ? "")) {
+					// Print anchors.
+					println(alink@href);
+				}
+			}
+		}
+	}	
 }
