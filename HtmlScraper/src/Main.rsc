@@ -14,85 +14,123 @@ anno str node@class;
 // |http://developer.android.com/reference/packages.html|
 
 public void main(loc packageSummaryUrl) {
-	for (url <- getPackageUrls(packageSummaryUrl)) {
-		set[str] information = getPackageInformation(|http://developer.android.com<url>|);
+	for (package_info <- getPackages(packageSummaryUrl)) {
+	
+		//println(package_info);
+		map[str,set[map[str,str]]] information = getPackageInformation(|http://developer.android.com<package_info["url"]>|);
 		
 		iprintln(information);	
 		
 	}		
 }
 
-public set[str] getPackageUrls(loc packageSummaryUrl) {
+public set[map[str,str]] getPackages(loc packageSummaryUrl) {
 	// Read html file as Node.
 	node html = readHTMLFile(packageSummaryUrl);
 	
-	set[str] urlSet = {};
+	set[map[str,str]] packageSet = {};
 	
 	// Get parent div with list of anchors.
 	visit(html) {
 		case parent:"div"(ulist): if((parent@id ? "") == "packages-nav") {
 			// Get anchors.
 			visit(ulist) {
-				case alink:"a"(_): if((alink@href ? "") != "") {
-					// Add anchor to set.
-					urlSet += {alink@href};
+				case alink:"a"(a_content): if((alink@href ? "") != "") {
+					// Get Names
+					visit(a_content) {
+						case atext:"text"(text_content): { 
+							map[str,str] package_info = (
+								"package":text_content,
+								"url":alink@href
+							);
+							// Add anchor to set.
+							packageSet += {package_info};
+						}
+					}		
 				}
 			}
 		}
 	}
 	
-	return urlSet;
+	return packageSet;
 }
 
-public set[str] getPackageInformation(loc packageInformationUrl) {
+public map[str, set[map[str, str]]] getPackageInformation(loc packageInformationUrl) {
 	node html = readHTMLFile(packageInformationUrl);
 	
 	set[str] urlSet = {};
+	set[map[str,str]] classSet = {};
+	set[map[str,str]] interfaceSet = {};
+	set[map[str,str]] exceptionSet = {};
+	set[map[str,str]] enumsSet = {};
+	set[map[str,str]] errorSet = {};
 	
 	visit(html) {
-		case parent:"table"(table_trs): if((parent@class ? "") == "jd-sumtable-expando") {
-			// Get anchors.
-			visit(table_trs) {
-				case trlink:"td"(field_content): if ((trlink@class ? "") == "jd-linkcol") {
-					visit(field_content) {
-						case alink:"a"(_): if((alink@href ? "") != "") {
-							// Add anchor to set.
-							urlSet += {alink@href};
+		// Get content div.
+		case parent_div_elem:"div"(div_content): if((parent_div_elem@id ? "") == "jd-content") {
+		
+			str entry_type = "";
+		
+			visit (div_content) {
+				case h2_elem:"h2"(h2_content): {
+					visit(h2_content) {
+						case text_elem:"text"(text_content): entry_type = text_content;
+					}
+				};
+				case table_elem:"table"(table_trs): if((table_elem@class ? "") == "jd-sumtable-expando") {
+					
+					
+					// Get anchors.
+					visit(table_trs) {
+						case trlink:"td"(field_content): if ((trlink@class ? "") == "jd-linkcol") {
+							visit(field_content) {
+								case alink:"a"(a_content): if((alink@href ? "") != "") {
+									// Get Names
+									visit(a_content) {
+										case atext:"text"(text_content): { 
+											map[str,str] package_info = (
+												"name":text_content,
+												"url":alink@href
+											);
+											// Group by class type.
+											switch (entry_type)
+											{
+												case "Classes": classSet += {package_info};
+												case "Interfaces": interfaceSet += {package_info};
+												case "Exceptions": exceptionSet += {package_info};
+												case "Enums": enumsSet += {package_info};
+												case "Errors": errorSet += {package_info};
+											}
+										}
+									}
+								}
+							}
 						}
 					}
 				}
-			}
-		}
+			}	
+		}	
 	}
 	
-	return urlSet;
+	map[str,set[map[str,str]]] packageDescription = (
+		"classes": classSet,
+		"interfaces": interfaceSet,
+		"exceptions": exceptionSet,
+		"enums": enumsSet,
+		"errors": errorSet
+	);
+	
+	return packageDescription;
 }
 
-
 /*
-public set[str] getClassesUrls(str packageURL)
-{
-	//add reference to the base url
-	packageUrlTotal = |http://developer.android.com|; 
-	packageUrlTotal += packageURL;
-	node packageFile = readHTMLFile(packageUrlTotal);
+public void getMethods(loc classInformationUrl) {
+	node html = readHTMLFile(classInformationUrl);
 	
-	set[str] classUrlSet = {};
-	
-	visit(packageFile){
-	 case parent:"div"(table): if((parent@id ? "missing") == "jd-content")
-	 {
-	 	visit(table){
-
-				case alink:"a"(_): if((alink@href ? "") != "") {
-
-					classUrlSet += {alink@href};
-				}
-	 	};
-	 }
-	};
-
-	return classUrlSet;
-	//contains pause() and resume() at some links, contains an license.html
+	visit(html) {
+		case parent:"div"(content_div): if((parent@id ? "") == "jd-content") {
+			println(parent);
+		}
+	}	
 }
 */
