@@ -1,45 +1,56 @@
 module Template
 
-
-
 import String;
 import IO;
 import Set;
 import List;
 
+data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName);
 
-public map[str, str] packages;
-
-
-// Capitalize the first character of a string
-
-public str capitalize(str s) {  
-  return toUpperCase(substring(s, 0, 1)) + substring(s, 1);
-}
-
-// Helper function to generate a method
-private str genMethod(str name, str returnType, lrel[str,str] arguments) {
-  return "public <returnType> <name> (<getArgumentsString(arguments)>) { };";
-}
-
-public str getArgumentsString(lrel[str argType, str name] arguments){
-	return intercalate(", ", ["<arg.argType> <arg.name>" | arg <- arguments]);	 
-}
-
-// Generate a class with given name and fields.
-// The field names are processed in sorted order.
-// methods 
-public str genClass(str packageName, str name, lrel[str name, tuple[str typeName, str packageName] returnType, lrel[str,str] arguments] methods) { 
-  return 
+// Helper function to generate a class
+public str genClass(str packageName, str name, lrel[str name, Type returnType, lrel[str, Type] arguments] methods) {
+  return
   	"package <packageName>;
-  	'<for (method <- methods) {>
-  		'import <method.returnType.packageName>;
-  	'<}>
+  	'
+  	'<genImports(methods)>
+    '
     'public class <name> {
     '<for (method <- methods) {>
-    '<genMethod(method.name, method.returnType.typeName, method.arguments)> <}>
+    	'<genMethod(method.name, method.returnType, method.arguments)>
+    '<}>
     '}";
 }
 
+// Helper function to generate the imports
+private str genImports(lrel[str name, Type returnType, lrel[str argName, Type argType] arguments] methods) {
+	set[str] imports = {};
+	for (method <- methods) {
+		if (method.returnType is \type) {
+			imports += genImport(method.returnType);
+		}
+		for (argument <- method.arguments, argument.argType is \type) {
+			imports += genImport(argument.argType);
+		}
+	}
+	return intercalate("\n", toList(imports));
+}
 
-//println(genClass("com.test","Test", [<"method1", <"int","x">, [<"int", "geMat">, <"bool", "isTrue">]>]));
+// Helper function to generate an import
+private str genImport(\type(str packageName, _)) {
+	return "import <packageName>;";
+}
+
+// Helper functions to generate a method
+private str genMethod(str name, \void(), lrel[str, Type] arguments) {
+  return "\tpublic void <name> (<genArgumentsString(arguments)>) { };";
+}
+private str genMethod(str name, returnType, lrel[str, Type] arguments) {
+  return "\tpublic <returnType.typeName> <name> (<genArgumentsString(arguments)>) { };";
+}
+
+// Helper function to generate an argument string
+public str genArgumentsString(lrel[str name, Type argType] arguments){
+	return intercalate(", ", ["<arg.argType.typeName> <arg.name>" | arg <- arguments]);
+}
+
+//println(genClass("com.test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.util.String", "String")>]>, <"isCool", \primitive("boolean"), []>]));
