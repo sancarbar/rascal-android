@@ -34,10 +34,11 @@ public void main() {
 
 public void buildProject() {
 	loc project = |http://developer.android.com/reference/packages.html|;
-	map[str,str] package_info = getOneFrom(getPackages(project));
-	map[str,set[map[str,str]]] information = getPackageInformation(package_info["url"]);
-	for (class <- information["classes"]) {
-		createClassFile(class["package_path"], class["name"], []);
+	for (package_info <- getPackages(project)) {
+		map[str,set[map[str,str]]] information = getPackageInformation(package_info["url"]);
+		for (class <- information["classes"]) {
+			createClassFile(class["package_path"], class["name"], []);
+		}
 	}
 }
 
