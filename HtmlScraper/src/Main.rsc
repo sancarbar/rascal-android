@@ -136,55 +136,49 @@ public map[str, set[map[str, str]]] getPackageInformation(loc packageInformation
 	return packageDescription;
 }
 
-	//str methodName = "";
+public map[str, set[map[str, str]]] getClassInformation(loc classInformationUrl) {
+	node html = readHTMLFile(classInformationUrl);
+	
+	str entry_type = "";
+	
 	set[map[str,str]] methodSet = {};
 	set[map[str,str]] constantSet = {};
 	set[map[str,str]] fieldSet = {};
 	set[map[str,str]] constructorSet = {};
-	str entry_type = "";
+	
 	visit(html){
-		
 		case h2_elem:"h2"(h2_content): {
-					visit(h2_content) {
-						case text_elem:"text"(text_content): entry_type = text_content;
-					}
-				} 
-		case div:"div"(div_method): if(/jd-details / := (div@class ? ""))
-		{
-			//println(entry_type);
+			visit(h2_content) {
+				case text_elem:"text"(text_content): entry_type = text_content;
+			}
+		} 
+		case div:"div"(div_method): if(/jd-details / := (div@class ? "")) {
 			str methodName = "";
 			str apiLevel = "";
-			visit(div_method){
-				case header:"h4"(h4_content): if((header@class ? "" ) == "jd-details-title")
-				{
-		  			//str methodName = "";
-					visit(h4_content){
-					case text:"text"(method_sig): methodName += method_sig;
+			
+			visit(div_method) {
+				case header:"h4"(h4_content): if((header@class ? "" ) == "jd-details-title") {
+		  			visit(h4_content){
+						case text:"text"(method_sig): methodName += method_sig;
 					}
 				}
-				case apidiv:"div"(div_content): if((apidiv@class ? "") == "api-level")
-				{
-					visit(div_content){
+				case apidiv:"div"(div_content): if((apidiv@class ? "") == "api-level") {
+					visit(div_content) {
 						case text:"text"(api_level): apiLevel += api_level;
-						}
-
+					}
 				}
 			}
 			map[str,str] method = ("sig" : methodName, "api" : apiLevel);
 			
-			switch(entry_type){
+			switch(entry_type) {
 				case "Public Methods":  methodSet += {method};
 				case "Public Constructors": constructorSet += {method}; 
 				case "Constants": constantSet += {method};
 				case "Fields": fieldSet += {method}; 
 				case "Protected Methods": methodSet += {method};
 			}
-			
 		}
-		
-		
 	}
-	//println(methodSet);
 	map[str,set[map[str,str]]] classDescription = (
 		"methods": methodSet,
 		"constants": constantSet,
@@ -194,28 +188,3 @@ public map[str, set[map[str, str]]] getPackageInformation(loc packageInformation
 	
 	return classDescription;
 }
-/*
-public set[str] getClassesUrls(str packageURL)
-{
-	//add reference to the base url
-	packageUrlTotal = |http://developer.android.com|; 
-	packageUrlTotal += packageURL;
-	node packageFile = readHTMLFile(packageUrlTotal);
-	
-	set[str] classUrlSet = {};
-	
-	visit(packageFile){
-	 case parent:"div"(table): if((parent@id ? "missing") == "jd-content")
-	 {
-	 	visit(table){
-
-				case alink:"a"(_): if((alink@href ? "") != "") {
-
-					classUrlSet += {alink@href};
-				}
-	 	};
-	 }
-	};
-
-	return classUrlSet;
-	//contains pause() and resume() at some links, contains an license.html
