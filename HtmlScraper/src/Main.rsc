@@ -35,9 +35,12 @@ public void main() {
 public void buildProject() {
 	loc project = |http://developer.android.com/reference/packages.html|;
 	for (package_info <- getPackages(project)) {
-		map[str,set[map[str,str]]] information = getPackageInformation(package_info["url"]);
+		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"]);
 		for (class <- information["classes"]) {
-			createClassFile(class["package_path"], class["name"], []);
+			text(class);
+			m = class["sig"];
+			println("class[sig] <m["name"]>");
+			createClassFile(class["package_path"], class["name"], [], class["sig"].extends, class["sig"]["implements"]);
 		}
 	}
 }
@@ -225,7 +228,7 @@ public map[str, value] getClassInformation(loc classInformationUrl) {
 	return classDescription;
 }
 
-public set[map[str,value]] extractClassSig(loc classInformationUrl){
+public map[str,value] extractClassSig(loc classInformationUrl){
 	node html = readHTMLFile(classInformationUrl);
 	str entry_type = "";
 	str class_sig = "";
@@ -242,7 +245,7 @@ public set[map[str,value]] extractClassSig(loc classInformationUrl){
 			println(class_sig);
 		}
 	}
-	set[map[str,value]] classSignature = {};
+	map[str,value] classSignature = ();
 	if(/\s<words:.*>extends\s+<ex:.*>implements\w*<imp:.*>/ := class_sig) 
 	{
 
@@ -250,20 +253,25 @@ public set[map[str,value]] extractClassSig(loc classInformationUrl){
 	  println(words);
 	  if(/<state:.*>\s+<name:\w+>/ := words)
 	  {
-	    classSignature += (
-	    "state" : state);
-	    classSignature += (
-	    "name" : name);
+	    classSignature["state"] = state;
+	    classSignature["name"] = name;
 	  }
-
-	  classSignature += ("extends" : {("url" : e) | e <- split(" ",ex), contains(e,"/reference")});
-	  classSignature  += ("implements" : {("url" : i) | i <- split(" ",imp), contains(i,"/reference")});
+	  str url = trim(substring(ex,findFirst(ex,"/"),size(ex)));
+	  classSignature["extends"] =  ("url":url, "type":getTypeFromUrl(url));
+	  classSignature ["implements"] = [("url" : i, "type": getTypeFromUrl(i)) | i <- split(" ",imp), contains(i,"/reference")];
 
 	  
 	  println(classSignature);
 	}
 	return classSignature;
 }
+
+private Type getTypeFromUrl(str url){
+	return  \type(substring(url, findLast(url, "/") + 1, size(url) - 5), replaceAll(substring(url, 11, findLast(url,"/")), "/", "."));
+}
+
+public void extractInformationFromMethodSignature()
+{}
 
 public map[str,value] extractInformationFromSignature(str sectionType, str signature, set[map[str,value]] dataTypes = {}) {
 	map[str,value] extractedInformation = ();

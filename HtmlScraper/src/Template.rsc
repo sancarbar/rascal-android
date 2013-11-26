@@ -10,7 +10,7 @@ data Type = \void() | \primitive(str typeName) | \type(str packageName, str type
 // Creates Java file
 public void createClassFile(str packagePath, str name, lrel[str name, Type returnType, lrel[str, Type] arguments] methods, Type superClass = \void(), list[Type] interfaces = []) {
 	str packageName = replaceAll(packagePath, "/", ".");
-	loc packageLoc = |project://GeneratedJavaSource/src| + packagePath;
+	loc packageLoc = |project://Android/src| + packagePath;
 	if(!exists(packageLoc)) {
 		mkDirectory(packageLoc);
 	}
