@@ -13,8 +13,11 @@ anno str node@class;
 
 // |http://developer.android.com/reference/packages.html|
 
-public void main(loc packageSummaryUrl) {
-	for (package_info <- getPackages(packageSummaryUrl)) {
+public void main() {
+
+	loc project = |http://developer.android.com/reference/packages.html|;
+
+	for (package_info <- getPackages(project)) {
 	
 		//println(package_info);
 		map[str,set[map[str,str]]] information = getPackageInformation(|http://developer.android.com<package_info["url"]>|);
@@ -90,12 +93,17 @@ public map[str, set[map[str, str]]] getPackageInformation(loc packageInformation
 										case atext:"text"(text_content): { 
 											map[str,str] package_info = (
 												"name":text_content,
-												"url":alink@href
+												"url":alink@href,
+												"package_path":substring(alink@href, 11, size(alink@href) - 5)
 											);
 											// Group by class type.
 											switch (entry_type)
 											{
-												case "Classes": classSet += {package_info};
+												case "Classes": {
+													classSet += {package_info};
+													
+													//getClassInformation(|http://developer.android.com<package_info["url"]>|);
+												}
 												case "Interfaces": interfaceSet += {package_info};
 												case "Exceptions": exceptionSet += {package_info};
 												case "Enums": enumsSet += {package_info};
@@ -122,15 +130,3 @@ public map[str, set[map[str, str]]] getPackageInformation(loc packageInformation
 	
 	return packageDescription;
 }
-
-/*
-public void getMethods(loc classInformationUrl) {
-	node html = readHTMLFile(classInformationUrl);
-	
-	visit(html) {
-		case parent:"div"(content_div): if((parent@id ? "") == "jd-content") {
-			println(parent);
-		}
-	}	
-}
-*/
