@@ -60,7 +60,19 @@ private str genMethod(str name, \void(), lrel[str, Type] arguments) {
   return "\tpublic void <name>(<genArgumentsString(arguments)>) { };";
 }
 private str genMethod(str name, returnType, lrel[str, Type] arguments) {
-  return "\tpublic <returnType.typeName> <name>(<genArgumentsString(arguments)>) { };";
+  return "\tpublic <returnType.typeName> <name>(<genArgumentsString(arguments)>) { return <getReturnTypeDefaultValue(returnType)>; };";
+}
+
+private str getReturnTypeDefaultValue(Type returnType) {
+	if (returnType is \type) {
+		return "null";
+	} else {
+		switch (returnType.typeName) {
+			case /char/: return "\'\u0000\'";
+			case /boolean/: return "false";
+			default: return "0";
+		}
+	}
 }
 
 // Helper function to generate an argument string
