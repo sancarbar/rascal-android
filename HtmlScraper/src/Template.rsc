@@ -8,14 +8,14 @@ import List;
 data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName);
 
 // Creates Java file
-public void createClassFile(str packagePath, str name, lrel[str name, Type returnType, lrel[str, Type] arguments] methods) {
+public void createClassFile(str packagePath, str name, lrel[str name, Type returnType, lrel[str, Type] arguments] methods, Type superClass = \void(), list[Type] interfaces = []) {
 	str packageName = replaceAll(packagePath, "/", ".");
 	loc packageLoc = |project://GeneratedJavaSource/src| + packagePath;
 	if(!exists(packageLoc)) {
 		mkDirectory(packageLoc);
 	}
 	loc classLoc = packageLoc + getFileName(name,".java");
-	appendToFile(classLoc, genClass(packageName, name, methods));
+	appendToFile(classLoc, genClass(packageName, name, methods, superClass, interfaces));
 }
 
 public str getFileName(str name, str ext){
@@ -23,13 +23,13 @@ public str getFileName(str name, str ext){
 }
 
 // Helper function to generate a class
-public str genClass(str packageName, str name, lrel[str name, Type returnType, lrel[str, Type] arguments] methods) {
+public str genClass(str packageName, str name, lrel[str name, Type returnType, lrel[str, Type] arguments] methods, Type superClass, list[Type] interfaces) {
   return
   	"package <packageName>;
   	'
-  	'<genImports(methods)>
+  	'<genImports(methods, superClass, interfaces)>
     '
-    'public class <name> {
+    'public class <name> <genExtend(superClass)> <genImplements(interfaces)> {
     '<for (method <- methods) {>
     	'<genMethod(method.name, method.returnType, method.arguments)>
     '<}>
@@ -37,8 +37,14 @@ public str genClass(str packageName, str name, lrel[str name, Type returnType, l
 }
 
 // Helper function to generate the imports
-private str genImports(lrel[str name, Type returnType, lrel[str argName, Type argType] arguments] methods) {
+private str genImports(lrel[str name, Type returnType, lrel[str argName, Type argType] arguments] methods, Type superClass, list[Type] interfaces) {
 	set[str] imports = {};
+	if(superClass is \type){
+		imports += genImport(superClass);
+	}
+	for(interface <- interfaces, interface is \type){
+		imports += genImport(interface);
+	}
 	for (method <- methods) {
 		if (method.returnType is \type) {
 			imports += genImport(method.returnType);
@@ -48,6 +54,25 @@ private str genImports(lrel[str name, Type returnType, lrel[str argName, Type ar
 		}
 	}
 	return intercalate("\n", toList(imports));
+}
+
+private str genExtend(\type(_, str typeName)){ 
+	return "extends <typeName>";
+}
+private str genExtend(noExtend){ 
+	return "";
+}
+
+private str genImplements(list[Type] interfaces){
+	list[str] implements = [];
+	str implementsValue = "";
+	for(interface <- interfaces, interface is \type){
+		implements +=  "<interface.typeName>";
+	}
+	if(!isEmpty(implements)){
+		implementsValue = "implements " + intercalate(", ", implements);
+	}
+	return implementsValue;
 }
 
 // Helper function to generate an import
@@ -81,3 +106,5 @@ public str genArgumentsString(lrel[str name, Type argType] arguments){
 }
 
 //createClassFile("com/test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.lang.String", "String")>]>, <"isCool", \primitive("boolean"), []>]);
+
+//println(genClass("com/test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.lang.String", "String")>]>, <"isCool", \primitive("boolean"), []>], \type("Somthing", "extendingClass"), [\type("Somthing", "extendingClass")]));
