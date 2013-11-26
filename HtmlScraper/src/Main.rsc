@@ -26,7 +26,7 @@ public void main() {
 		map[str, value] package_information = package_info + ("information":information);
 		// Add full package information to set.
 		packages += {package_information};
-		println(package_information);		
+		text(package_information);		
 	}
 	
 	text(packages);
@@ -110,7 +110,7 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 												"sig" : extractClassSig(|http://developer.android.com<alink@href>|),
 												"name":text_content,
 												"url":|http://developer.android.com<alink@href>|,
-												"package_path":substring(alink@href, 11, findLast(alink@href, "/")),
+												"package_path":replaceAll(substring(alink@href, 11, findLast(alink@href, "/")), "/", ""),
 												"information":getClassInformation(|http://developer.android.com<alink@href>|)
 											);
 											// Group by class type.
@@ -153,10 +153,12 @@ public map[str, value] getClassInformation(loc classInformationUrl) {
 	
 	str entry_type = "";
 	
-	set[map[str,str]] methodSet = {};
-	set[map[str,str]] constantSet = {};
-	set[map[str,str]] fieldSet = {};
-	set[map[str,str]] constructorSet = {};
+	set[map[str,value]] methodSet = {};
+	set[map[str,value]] constantSet = {};
+	set[map[str,value]] fieldSet = {};
+	set[map[str,value]] constructorSet = {};
+	
+	set[map[str,value]] dataTypes = {};
 	
 	visit(html){
 		case h2_elem:"h2"(h2_content): {
@@ -170,6 +172,22 @@ public map[str, value] getClassInformation(loc classInformationUrl) {
 			
 			visit(div_method) {
 				case header:"h4"(h4_content): if((header@class ? "" ) == "jd-details-title") {
+					// Get urls
+					visit(h4_content){
+						case alink:"a"(a_content): if((alink@href ? "") != "") {
+							visit(a_content) {
+								case atext:"text"(text_content): {
+									map[str,value] datatype_info = (
+										"name":text_content,
+										"url":|http://developer.android.com<alink@href>|,
+										"package_path":replaceAll(substring(alink@href, 11, size(alink@href) - 5), "/", ".")
+									);
+									dataTypes += {datatype_info};
+								}
+							}
+						}
+					}
+					// Get Text.
 		  			visit(h4_content){
 						case text:"text"(method_sig): methodName += method_sig;
 					}
@@ -180,7 +198,11 @@ public map[str, value] getClassInformation(loc classInformationUrl) {
 					}
 				}
 			}
-			map[str,str] method = ("sig" : methodName, "api" : apiLevel);
+			map[str,value] method = (
+				"sig" : methodName, 
+				"api" : apiLevel,
+				"information": extractInformationFromSignature(entry_type, methodName, dataTypes = dataTypes)
+			);
 			
 			switch(entry_type) {
 				case "Public Methods":  methodSet += {method};
@@ -191,6 +213,7 @@ public map[str, value] getClassInformation(loc classInformationUrl) {
 			}
 		}
 	}
+	
 	map[str,value] classDescription = (
 		"methods": methodSet,
 		"constants": constantSet,
@@ -242,7 +265,48 @@ public set[map[str,value]] extractClassSig(loc classInformationUrl){
 	return classSignature;
 }
 
-public void extractInformationFromMethodSignature()
-{
-
+public map[str,value] extractInformationFromSignature(str sectionType, str signature, set[map[str,value]] dataTypes = {}) {
+	map[str,value] extractedInformation = ();
+	
+	
+	
+	
+	switch (sectionType) {
+		case "Constants": {
+			// extractInformationFromSignature("Constants", "public static final int fade_in");	
+			if (/<visibility:public|private|protected>? *<state1:static|abstract|final>? *<state2:static|abstract|final>? *<dtype:[a-zA-Z0-9_\-\.]*> *<pname:[a-zA-Z0-9_\-]*>/ := signature) {
+				extractedInformation += (
+					"visibility": visibility,
+					"state": "<state1> <state2>",
+					"dtype": dtype,
+					"property_name": pname
+				);
+			}
+		}
+		case "Public Methods": {
+			// extractInformationFromSignature("Public Methods", "public void setFeature (String name, boolean value)");
+			if (/<visibility:public|private|protected>? *<state1:static|abstract|final>? *<state2:static|abstract|final>? *<dtype:[a-zA-Z0-9_\-\.]*> *<mname:[a-zA-Z0-9_\-]*> *\(<params:.*>\)/ := signature) {
+			
+				list[str] params = split(",", params);
+				list[value] splittedparam = [];
+				for (param <- params) {
+					splittedparam += split(" ", trim(param));
+					
+					// TODO: Matching data type information.
+					
+				}
+			
+			
+				extractedInformation += (
+					"visibility": visibility,
+					"state": trim("<state1> <state2>"),
+					"type": dtype,
+					"method_name": mname,
+					"parameters": splittedparam
+				);
+			}
+		}
+	}
+	
+	return extractedInformation;
 }
