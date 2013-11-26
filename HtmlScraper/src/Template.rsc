@@ -29,7 +29,7 @@ public str genClass(str packageName, str name, lrel[str name, Type returnType, l
   	'
   	'<genImports(methods, superClass, interfaces)>
     '
-    'public class <name> <genExtend(superClass)> <genImplements(interfaces)> {
+    'public class <name><genExtend(superClass)><genImplements(interfaces)> {
     '<for (method <- methods) {>
     	'<genMethod(method.name, method.returnType, method.arguments)>
     '<}>
@@ -56,13 +56,20 @@ private str genImports(lrel[str name, Type returnType, lrel[str argName, Type ar
 	return intercalate("\n", toList(imports));
 }
 
+// Helper function to generate an import
+private str genImport(\type(str packageName, _)) {
+	return "import <packageName>;";
+}
+
+// Helper functions to generate an extend
 private str genExtend(\type(_, str typeName)){ 
-	return "extends <typeName>";
+	return " extends <typeName>";
 }
 private str genExtend(noExtend){ 
 	return "";
 }
 
+// Helper function to generate the implements
 private str genImplements(list[Type] interfaces){
 	list[str] implements = [];
 	str implementsValue = "";
@@ -70,14 +77,9 @@ private str genImplements(list[Type] interfaces){
 		implements +=  "<interface.typeName>";
 	}
 	if(!isEmpty(implements)){
-		implementsValue = "implements " + intercalate(", ", implements);
+		implementsValue = " implements " + intercalate(", ", implements);
 	}
 	return implementsValue;
-}
-
-// Helper function to generate an import
-private str genImport(\type(str packageName, _)) {
-	return "import <packageName>;";
 }
 
 // Helper functions to generate a method
@@ -105,6 +107,7 @@ public str genArgumentsString(lrel[str name, Type argType] arguments){
 	return intercalate(", ", ["<arg.argType.typeName> <arg.name>" | arg <- arguments]);
 }
 
+//Examples:
 //createClassFile("com/test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.lang.String", "String")>]>, <"isCool", \primitive("boolean"), []>]);
-
+//createClassFile("com/test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.lang.String", "String")>]>, <"isCool", \primitive("boolean"), []>], superClass = \type("java.util.ArrayList", "ArrayList"), interfaces = [\type("java.util.List", "List")]);
 //println(genClass("com/test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.lang.String", "String")>]>, <"isCool", \primitive("boolean"), []>], \type("Somthing", "extendingClass"), [\type("Somthing", "extendingClass")]));
