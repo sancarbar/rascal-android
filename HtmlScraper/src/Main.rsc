@@ -7,12 +7,24 @@ import util::ValueUI;
 import Location;
 import String;
 import Template;
+import ParseTree;
+import ClassSigParser;
+
+
+//annotations
 
 anno str node@id;
 anno str node@href;
 anno str node@class;
 
 // |http://developer.android.com/reference/packages.html|
+
+public void parseTester(){
+	
+	appendToFile(|project://HTML/bin/results.txt|,parse(#MethodDef,"public static void MethodeNaam (Param p, Param b)"));
+	//appendToFile(|project://HTML/bin/results.txt|,parse(#ClassDef,"public static class NAAM extends extender Hoppa implements impleme/nter impl more imp"));
+	//implode(#node,parse(#ClassDef,"public static class NAAM extends object object/link"));
+}
 
 public void main() {
 	loc project = |http://developer.android.com/reference/packages.html|;
@@ -236,21 +248,21 @@ public map[str,value] extractClassSig(loc classInformationUrl){
 		 
 		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header"){
 			visit(div_class_sig){
-				case text:"text"(text_content) :{ class_sig += " " + text_content; println(entry_type);}
+				case text:"text"(text_content) :{ class_sig += " " + text_content;}
 				case alink:"a"(a_content) :if((alink@href ? "") != "") {
 					class_sig += " " + alink@href + " ";
 				} 
 						
 			}
-			println(class_sig);
+			//println(class_sig);
+			println(parse(#ClassDef,class_sig));
 		}
 	}
 	map[str,value] classSignature = ();
-	if(/\s<words:.*>extends\s+<ex:.*>implements\w*<imp:.*>/ := class_sig) 
+	if(/\s<words:.*>(extends\s+<ex:.*>)?(implements\s+<imp:.*>)?/ := class_sig) 
 	{
+	  println("words + <words>");
 
-	  println(class_sig);
-	  println(words);
 	  if(/<state:.*>\s+<name:\w+>/ := words)
 	  {
 	    classSignature["state"] = state;
@@ -260,8 +272,6 @@ public map[str,value] extractClassSig(loc classInformationUrl){
 	  classSignature["extends"] =  ("url":url, "type":getTypeFromUrl(url));
 	  classSignature ["implements"] = [("url" : i, "type": getTypeFromUrl(i)) | i <- split(" ",imp), contains(i,"/reference")];
 
-	  
-	  println(classSignature);
 	}
 	return classSignature;
 }
