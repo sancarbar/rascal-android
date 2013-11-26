@@ -16,11 +16,20 @@ anno str node@class;
 
 public void main() {
 	loc project = |http://developer.android.com/reference/packages.html|;
+	
+	set[value] packages = {};
+	
 	for (package_info <- getPackages(project)) {
-		//println(package_info);
-		map[str,set[map[str,str]]] information = getPackageInformation(|http://developer.android.com<package_info["url"]>|);
-		iprintln(information);
+		// Retrieve detailed package information.
+		map[str,set[map[str,value]]] information = getPackageInformation(|http://developer.android.com<package_info["url"]>|);
+		// Add detailed to package information to the package information we already have.
+		map[str, value] package_information = package_info + ("information":information);
+		// Add full package information to set.
+		packages += {package_information};
+		text(package_information);		
 	}
+	
+	text(packages);
 }
 
 public void buildProject() {
@@ -63,15 +72,15 @@ public set[map[str,str]] getPackages(loc packageSummaryUrl) {
 	return packageSet;
 }
 
-public map[str, set[map[str, str]]] getPackageInformation(loc packageInformationUrl) {
+public map[str, set[map[str, value]]] getPackageInformation(loc packageInformationUrl) {
 	node html = readHTMLFile(packageInformationUrl);
 	
 	set[str] urlSet = {};
-	set[map[str,str]] classSet = {};
-	set[map[str,str]] interfaceSet = {};
-	set[map[str,str]] exceptionSet = {};
-	set[map[str,str]] enumsSet = {};
-	set[map[str,str]] errorSet = {};
+	set[map[str,value]] classSet = {};
+	set[map[str,value]] interfaceSet = {};
+	set[map[str,value]] exceptionSet = {};
+	set[map[str,value]] enumsSet = {};
+	set[map[str,value]] errorSet = {};
 	
 	visit(html) {
 		// Get content div.
@@ -96,10 +105,11 @@ public map[str, set[map[str, str]]] getPackageInformation(loc packageInformation
 									// Get Names
 									visit(a_content) {
 										case atext:"text"(text_content): { 
-											map[str,str] package_info = (
+											map[str,value] package_info = (
 												"name":text_content,
 												"url":alink@href,
-												"package_path":substring(alink@href, 11, findLast(alink@href, "/"))
+												"package_path":substring(alink@href, 11, findLast(alink@href, "/")),
+												"information":getClassInformation(|http://developer.android.com<alink@href>|)
 											);
 											// Group by class type.
 											switch (entry_type)
@@ -125,7 +135,7 @@ public map[str, set[map[str, str]]] getPackageInformation(loc packageInformation
 		}	
 	}
 	
-	map[str,set[map[str,str]]] packageDescription = (
+	map[str,set[map[str,value]]] packageDescription = (
 		"classes": classSet,
 		"interfaces": interfaceSet,
 		"exceptions": exceptionSet,
@@ -136,7 +146,7 @@ public map[str, set[map[str, str]]] getPackageInformation(loc packageInformation
 	return packageDescription;
 }
 
-public map[str, set[map[str, str]]] getClassInformation(loc classInformationUrl) {
+public map[str, value] getClassInformation(loc classInformationUrl) {
 	node html = readHTMLFile(classInformationUrl);
 	
 	str entry_type = "";
@@ -179,11 +189,12 @@ public map[str, set[map[str, str]]] getClassInformation(loc classInformationUrl)
 			}
 		}
 	}
-	map[str,set[map[str,str]]] classDescription = (
+	map[str,value] classDescription = (
 		"methods": methodSet,
 		"constants": constantSet,
 		"fields": fieldSet,
-		"constructors": constructorSet
+		"constructors": constructorSet,
+		"innerclasses": "TODO"
 	);
 	
 	return classDescription;
