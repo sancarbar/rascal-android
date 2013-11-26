@@ -107,6 +107,7 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 									visit(a_content) {
 										case atext:"text"(text_content): { 
 											map[str,value] package_info = (
+												"sig" : extractClassSig(|http://developer.android.com<alink@href>|),
 												"name":text_content,
 												"url":|http://developer.android.com<alink@href>|,
 												"package_path":substring(alink@href, 11, findLast(alink@href, "/")),
@@ -199,6 +200,46 @@ public map[str, value] getClassInformation(loc classInformationUrl) {
 	);
 	
 	return classDescription;
+}
+
+public set[map[str,value]] extractClassSig(loc classInformationUrl){
+	node html = readHTMLFile(classInformationUrl);
+	str entry_type = "";
+	str class_sig = "";
+	visit(html){
+		 
+		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header"){
+			visit(div_class_sig){
+				case text:"text"(text_content) :{ class_sig += " " + text_content; println(entry_type);}
+				case alink:"a"(a_content) :if((alink@href ? "") != "") {
+					class_sig += " " + alink@href + " ";
+				} 
+						
+			}
+			println(class_sig);
+		}
+	}
+	set[map[str,value]] classSignature = {};
+	if(/\s<words:.*>extends\s+<ex:.*>implements\w*<imp:.*>/ := class_sig) 
+	{
+
+	  println(class_sig);
+	  println(words);
+	  if(/<state:.*>\s+<name:\w+>/ := words)
+	  {
+	    classSignature += (
+	    "state" : state);
+	    classSignature += (
+	    "name" : name);
+	  }
+
+	  classSignature += ("extends" : {("url" : e) | e <- split(" ",ex), contains(e,"/reference")});
+	  classSignature  += ("implements" : {("url" : i) | i <- split(" ",imp), contains(i,"/reference")});
+
+	  
+	  println(classSignature);
+	}
+	return classSignature;
 }
 
 public void extractInformationFromMethodSignature()
