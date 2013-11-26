@@ -54,3 +54,32 @@ public str genArgumentsString(lrel[str name, Type argType] arguments){
 }
 
 //println(genClass("com.test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.util.String", "String")>]>, <"isCool", \primitive("boolean"), []>]));
+
+
+
+public void createClassFile(str package, str name, list[str] methods){
+//createClassFile("a", "test", ["public void testMethod()"]);
+	packageLoc = ROOT_LOC + package;
+	if(!exists(packageLoc))
+		mkDirectory(packageLoc);
+	loc classLoc = packageLoc + getFileName(name,".java"); 
+	appendToFile(classLoc, getPackageName(package));
+	appendToFile(classLoc,  "\n\n\n\npublic class "+capitalize(name)+"{\n\n");
+	for(m <- methods){
+		appendToFile(classLoc,  m +"{}");	
+	}
+	appendToFile(classLoc,  "\n\n}\n");
+}
+
+
+
+
+public str getFileName(str name, str ext){
+	return capitalize(name) + ext;
+}
+
+public str getPackageName(str package){
+	return "package android." + package + ";\n";
+}
+
+
