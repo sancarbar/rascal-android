@@ -21,12 +21,12 @@ public void main() {
 	
 	for (package_info <- getPackages(project)) {
 		// Retrieve detailed package information.
-		map[str,set[map[str,value]]] information = getPackageInformation(|http://developer.android.com<package_info["url"]>|);
+		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"]);
 		// Add detailed to package information to the package information we already have.
 		map[str, value] package_information = package_info + ("information":information);
 		// Add full package information to set.
 		packages += {package_information};
-		text(package_information);		
+		println(package_information);		
 	}
 	
 	text(packages);
@@ -35,17 +35,17 @@ public void main() {
 public void buildProject() {
 	loc project = |http://developer.android.com/reference/packages.html|;
 	map[str,str] package_info = getOneFrom(getPackages(project));
-	map[str,set[map[str,str]]] information = getPackageInformation(|http://developer.android.com<package_info["url"]>|);
+	map[str,set[map[str,str]]] information = getPackageInformation(package_info["url"]);
 	for (class <- information["classes"]) {
 		createClassFile(class["package_path"], class["name"], []);
 	}
 }
 
-public set[map[str,str]] getPackages(loc packageSummaryUrl) {
+public set[map[str,value]] getPackages(loc packageSummaryUrl) {
 	// Read html file as Node.
 	node html = readHTMLFile(packageSummaryUrl);
 	
-	set[map[str,str]] packageSet = {};
+	set[map[str,value]] packageSet = {};
 	
 	// Get parent div with list of anchors.
 	visit(html) {
@@ -56,9 +56,9 @@ public set[map[str,str]] getPackages(loc packageSummaryUrl) {
 					// Get Names
 					visit(a_content) {
 						case atext:"text"(text_content): { 
-							map[str,str] package_info = (
+							map[str,value] package_info = (
 								"package":text_content,
-								"url":alink@href
+								"url":|http://developer.android.com<alink@href>|
 							);
 							// Add anchor to set.
 							packageSet += {package_info};
@@ -107,7 +107,7 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 										case atext:"text"(text_content): { 
 											map[str,value] package_info = (
 												"name":text_content,
-												"url":alink@href,
+												"url":|http://developer.android.com<alink@href>|,
 												"package_path":substring(alink@href, 11, findLast(alink@href, "/")),
 												"information":getClassInformation(|http://developer.android.com<alink@href>|)
 											);
@@ -198,4 +198,9 @@ public map[str, value] getClassInformation(loc classInformationUrl) {
 	);
 	
 	return classDescription;
+}
+
+public void extractInformationFromMethodSignature()
+{
+
 }
