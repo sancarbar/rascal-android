@@ -6,6 +6,7 @@ import Set;
 import util::ValueUI;
 import Location;
 import String;
+import Template;
 
 anno str node@id;
 anno str node@href;
@@ -14,17 +15,21 @@ anno str node@class;
 // |http://developer.android.com/reference/packages.html|
 
 public void main() {
-
 	loc project = |http://developer.android.com/reference/packages.html|;
-
 	for (package_info <- getPackages(project)) {
-	
 		//println(package_info);
 		map[str,set[map[str,str]]] information = getPackageInformation(|http://developer.android.com<package_info["url"]>|);
-		
-		iprintln(information);	
-		
-	}		
+		iprintln(information);
+	}
+}
+
+public void buildProject() {
+	loc project = |http://developer.android.com/reference/packages.html|;
+	map[str,str] package_info = getOneFrom(getPackages(project));
+	map[str,set[map[str,str]]] information = getPackageInformation(|http://developer.android.com<package_info["url"]>|);
+	for (class <- information["classes"]) {
+		createClassFile(class["package_path"], class["name"], []);
+	}
 }
 
 public set[map[str,str]] getPackages(loc packageSummaryUrl) {
@@ -94,7 +99,7 @@ public map[str, set[map[str, str]]] getPackageInformation(loc packageInformation
 											map[str,str] package_info = (
 												"name":text_content,
 												"url":alink@href,
-												"package_path":substring(alink@href, 11, size(alink@href) - 5)
+												"package_path":substring(alink@href, 11, findLast(alink@href, "/"))
 											);
 											// Group by class type.
 											switch (entry_type)

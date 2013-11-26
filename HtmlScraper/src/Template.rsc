@@ -8,9 +8,9 @@ import List;
 data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName);
 
 // Creates Java file
-public void createClassFile(str packageName, str name, lrel[str name, Type returnType, lrel[str, Type] arguments] methods) {
-	str packageFolder = replaceAll(packageName, ".", "/");
-	loc packageLoc = |project://GeneratedJavaSource/src| + packageFolder;
+public void createClassFile(str packagePath, str name, lrel[str name, Type returnType, lrel[str, Type] arguments] methods) {
+	str packageName = replaceAll(packagePath, "/", ".");
+	loc packageLoc = |project://GeneratedJavaSource/src| + packagePath;
 	if(!exists(packageLoc)) {
 		mkDirectory(packageLoc);
 	}
@@ -68,4 +68,4 @@ public str genArgumentsString(lrel[str name, Type argType] arguments){
 	return intercalate(", ", ["<arg.argType.typeName> <arg.name>" | arg <- arguments]);
 }
 
-//createClassFile("com.test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.lang.String", "String")>]>, <"isCool", \primitive("boolean"), []>]);
+//createClassFile("com/test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.lang.String", "String")>]>, <"isCool", \primitive("boolean"), []>]);
