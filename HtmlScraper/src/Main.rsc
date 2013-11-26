@@ -19,6 +19,9 @@ anno str node@class;
 
 // |http://developer.android.com/reference/packages.html|
 
+/* testing class, under construction much!
+// still need to find out how the implode works
+// so a ADT can be build :) */
 public void parseTester(){
 	
 	appendToFile(|project://HTML/bin/results.txt|,parse(#MethodDef,"public static void MethodeNaam (Param p, Param b)"));
