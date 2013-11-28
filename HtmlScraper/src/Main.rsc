@@ -235,23 +235,40 @@ public map[str, value] getClassInformation(loc classInformationUrl) {
 
 public map[str,value] extractClassSig(loc classInformationUrl){
 	node html = readHTMLFile(classInformationUrl);
-	str entry_type = "";
 	str class_sig = "";
 	visit(html){
 		 
 		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header"){
 			visit(div_class_sig){
-				case text:"text"(text_content) :{ class_sig += " " + text_content;}
+				case text:"text"(text_content) :{ class_sig += text_content + " ";}
 				case alink:"a"(a_content) :if((alink@href ? "") != "") {
-					class_sig += " " + alink@href + " ";
+					class_sig += alink@href + " ";
 				} 
 						
 			}
-			//println(class_sig);
-			println(parse(#ClassDef,class_sig));
+			//println("class + <class_sig>");
 		}
 	}
+	
+	//to remove the last space and avoid parse errors.
+	int i = size(class_sig);
+	class_sig = class_sig[0..i-1];
+
 	map[str,value] classSignature = ();
+	node class_AST = parseClassToAST(class_sig);
+	println(class_AST);
+	visit(class_AST){
+	//v1 = modifiers, v2 = name, v3= list of extenders, v4 = list of implementers
+		case "class"(v1,v2,v3,v4):{
+			classSignature["state"] = v1; //println(v1);
+			classSignature["name"] = v2; //println(v2);
+			println(v3);
+			println(v4);
+		} 
+	}
+	
+	println("classy + <classSignature["state"]>");
+	
 	if(/\s<words:.*>(extends\s+<ex:.*>)?(implements\s+<imp:.*>)?/ := class_sig) 
 	{
 	  println("words + <words>");
