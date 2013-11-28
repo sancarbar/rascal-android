@@ -3,16 +3,15 @@ import ParseTree;
 import IO;
 
 //grammar for class signatures
-layout Spaces = [\t\ \n]*;
-lexical Iden = [a-zA-Z/.\[\]()]+;
-lexical Link = [a-zA-Z/.\[\]()]+;
+layout Spaces = [\t\ \n]* !>> [\t\ \n]; 
+lexical Iden = [a-zA-Z/\\.\[\]()0-9]+ !>> [a-zA-Z/\\.\[\]()0-9];
 
 // public static class ClassName extends extender implements implementer link implementer2 link2
 
 syntax ClassDef
-  = Modifiers+ "class" Iden ExtendsClause ImplementsClause
-  | Modifiers+ "interface" Iden ExtendsClause ImplementsClause //Modifiers "interface" //Id ExtendsClause ImplementsClause
-  | Modifiers+ "enum" Iden ExtendsClause ImplementsClause
+  = class: Modifiers+ "class" Iden ExtendsClause ImplementsClause
+  | interface: Modifiers+ "interface" Iden ExtendsClause ImplementsClause
+  | enum: Modifiers+ "enum" Iden ExtendsClause ImplementsClause
   ;
   
  //possible modifiers
@@ -29,27 +28,29 @@ lexical Modifiers
 //will be of the form Object reference/linktoObject.html
 syntax ExtendsClause 
   = empty:
-  | nonEmpty: "extends" IdenLink+
+  | extends: "extends" IdenLink+
   ;
   
 syntax ImplementsClause 
   = empty:
-  | nonEmpty: "implements" IdenLink+
+  | implements: "implements" IdenLink+
   ;
 
 syntax IdenLink
-= empty:
-| nonempty: Iden Link;
+ = link: Iden Iden;
   //grammar for methods
   // modifiers return name (parameters)
  
  syntax MethodDef
-  = Modifiers+ Iden Iden "(" Params+ ")";
+  = method: Modifiers+ ReturnType Iden "(" Params+ ")";
+  
+ syntax ReturnType
+  = \return: Iden;
   
   //Param p or Param p, Param p2, Param p3 etc (comma!!)
  syntax Params
   = empty:
-  | nonempty: Iden Iden ","?
+  | nonempty: Iden Iden","?
   ;
   
   /* testing class, under construction much!
@@ -57,8 +58,8 @@ syntax IdenLink
 // so a ADT can be build :) */
 public node parseClassToADT(str classsig){
 	
-	node ast = implode(#node,parse(#ClassDef,classsig));
-	println(ast);
-	return ast;
+			 node ast = implode(#node,parse(#ClassDef,classsig));
+	 println(ast);
+	 return ast;
 }
   
