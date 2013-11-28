@@ -19,15 +19,6 @@ anno str node@class;
 
 // |http://developer.android.com/reference/packages.html|
 
-/* testing class, under construction much!
-// still need to find out how the implode works
-// so a ADT can be build :) */
-public void parseTester(){
-	
-	node ast = implode(#node,parse(#ClassDef,"public class naam"));
-	//println(ast);
-}
-
 public void main() {
 	loc project = |http://developer.android.com/reference/packages.html|;
 	
