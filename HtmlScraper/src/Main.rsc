@@ -10,7 +10,6 @@ import Template;
 import ParseTree;
 import SignatureParser;
 
-
 //annotations
 
 anno str node@id;
@@ -42,10 +41,22 @@ public void buildProject() {
 	for (package_info <- getPackages(project)) {
 		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"]);
 		for (class <- information["classes"]) {
-			text(class);
-			m = class["sig"];
-			println("class[sig] <m["name"]>");
-			createClassFile(class["package_path"], class["name"], [], class["sig"].extends, class["sig"]["implements"]);
+			//text(class);
+			url = class["url"];
+			methods = getMethodsOfClass(url);
+			println("url <url>");
+			//text(methods);
+
+			for(method <- methods) {
+				str signature = getConstructSignature(method);
+				println(signature);
+				println(getConstructName(signature));
+				println("----------------------");
+			}
+
+			//lrel[str name, Type returnType, lrel[str, Type] arguments] methodss = [<"a", \void(), []> | method <- methods];
+			//createClassFile(class["package_path"], class["name"], [], class["sig"].extends, class["sig"]["implements"]);
+			//createClassFile(class["package_path"], class["name"], []);
 		}
 	}
 }
@@ -115,7 +126,7 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 									visit(a_content) {
 										case atext:"text"(text_content): { 
 											map[str,value] package_info = (
-												"sig" : extractClassSig(|http://developer.android.com<alink@href>|),
+												"sig" : "TODO", //extractClassSig(|http://developer.android.com<alink@href>|),
 												"name":text_content,
 												"url":|http://developer.android.com<alink@href>|,
 												"package_path":replaceAll(substring(alink@href, 11, findLast(alink@href, "/")), "/", ""),
@@ -156,82 +167,156 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 	return packageDescription;
 }
 
-public map[str, value] getClassInformation(loc classInformationUrl) {
-	node html = readHTMLFile(classInformationUrl);
+public list[list[node]] getMethodsOfClass(loc classUrl) {
+	return getClassConstructs(classUrl)["methods"];
+}
+
+public list[list[node]] getConstructorsOfClass(loc classUrl) {
+	return getClassConstructs(classUrl)["constructors"];
+}
+
+public list[list[node]] getConstantsOfClass(loc classUrl) {
+	return getClassConstructs(classUrl)["constants"];
+}
+
+public list[list[node]] getFieldsOfClass(loc classUrl) {
+	return getClassConstructs(classUrl)["fields"];
+}
+
+private map[str, list[list[node]]] getClassConstructs(loc classUrl) {
+	node html = readHTMLFile(classUrl);
+	list[list[node]] methods = [];
+	list[list[node]] constants = [];
+	list[list[node]] fields = [];
+	list[list[node]] constructors = [];
 	
-	str entry_type = "";
-	
-	set[map[str,value]] methodSet = {};
-	set[map[str,value]] constantSet = {};
-	set[map[str,value]] fieldSet = {};
-	set[map[str,value]] constructorSet = {};
-	
-	set[map[str,value]] dataTypes = {};
-	
-	visit(html){
-		case h2_elem:"h2"(h2_content): {
-			visit(h2_content) {
-				case text_elem:"text"(text_content): entry_type = text_content;
+	str construct;
+	visit(html) {
+		case h2Elem:"h2"(h2Content): {
+			visit(h2Content) {
+				case textElem:"text"(textContent): construct = textContent;
 			}
-		} 
-		case div:"div"(div_method): if(/jd-details / := (div@class ? "")) {
-			str methodName = "";
-			str apiLevel = "";
-			
-			visit(div_method) {
-				case header:"h4"(h4_content): if((header@class ? "" ) == "jd-details-title") {
-					// Get urls
-					visit(h4_content){
-						case alink:"a"(a_content): if((alink@href ? "") != "") {
-							visit(a_content) {
-								case atext:"text"(text_content): {
-									map[str,value] datatype_info = (
-										"name":text_content,
-										"url":|http://developer.android.com<alink@href>|,
-										"package_path":replaceAll(substring(alink@href, 11, size(alink@href) - 5), "/", ".")
-									);
-									dataTypes += {datatype_info};
-								}
-							}
-						}
-					}
-					// Get Text.
-		  			visit(h4_content){
-						case text:"text"(method_sig): methodName += method_sig;
-					}
-				}
-				case apidiv:"div"(div_content): if((apidiv@class ? "") == "api-level") {
-					visit(div_content) {
-						case text:"text"(api_level): apiLevel += api_level;
-					}
+		}
+		case div:"div"(divMethod): if(/jd-details / := (div@class ? "")) {
+			list[node] constructNode;
+			visit(divMethod) {
+				case header:"h4"(h4Content): if ((header@class ? "" ) == "jd-details-title") {
+					constructNode = h4Content;
 				}
 			}
-			map[str,value] method = (
-				"sig" : methodName, 
-				"api" : apiLevel,
-				"information": extractInformationFromSignature(entry_type, methodName, dataTypes = dataTypes)
-			);
-			
-			switch(entry_type) {
-				case "Public Methods":  methodSet += {method};
-				case "Public Constructors": constructorSet += {method}; 
-				case "Constants": constantSet += {method};
-				case "Fields": fieldSet += {method}; 
-				case "Protected Methods": methodSet += {method};
+			switch(construct) {
+				case "Public Methods":  methods += [constructNode];
+				case "Public Constructors": constructors += [constructNode];
+				case "Constants": constants += [constructNode];
+				case "Fields": fields += [constructNode];
+				case "Protected Methods": methods += [constructNode];
 			}
 		}
 	}
 	
-	map[str,value] classDescription = (
-		"methods": methodSet,
-		"constants": constantSet,
-		"fields": fieldSet,
-		"constructors": constructorSet,
-		"innerclasses": "TODO"
+	map[str,list[list[node]]] classConstructs = (
+		"methods": methods,
+		"constants": constants,
+		"fields": fields,
+		"constructors": constructors
+		//"innerclasses": "TODO"
 	);
 	
-	return classDescription;
+	return classConstructs;
 }
+
+public str getConstructSignature(list[node] constructNodes) {
+	str signature = "";
+	visit(constructNodes) {
+		case text:"text"(partOfSignature): signature += partOfSignature;
+	}
+	return signature;
+}
+
+public str getConstructName(str constructSignature) {
+	str name = "";
+	if (/(public|private|protected)?\s*(static|abstract|final){0,3}\s*[a-zA-Z0-9_\-\.]*\s*<constructName:[a-zA-Z0-9_\-]*>/ := constructSignature) {
+		name = constructName;
+	}
+	return name;
+}
+
+//public map[str, set[map[str,value]]] getClassInformation(loc classInformationUrl) {
+//	node html = readHTMLFile(classInformationUrl);
+//
+//	str entry_type = "";
+//
+//	set[map[str,value]] methodSet = {};
+//	set[map[str,value]] constantSet = {};
+//	set[map[str,value]] fieldSet = {};
+//	set[map[str,value]] constructorSet = {};
+//
+//	set[map[str,value]] dataTypes = {};
+//
+//	visit(html){
+//		case h2_elem:"h2"(h2_content): {
+//			visit(h2_content) {
+//				case text_elem:"text"(text_content): entry_type = text_content;
+//			}
+//		}
+//		case div:"div"(div_method): if(/jd-details / := (div@class ? "")) {
+//			str methodName = "";
+//			str apiLevel = "";
+//
+//			visit(div_method) {
+//				case header:"h4"(h4_content): if((header@class ? "" ) == "jd-details-title") {
+//					// Get urls
+//					visit(h4_content){
+//						case alink:"a"(a_content): if((alink@href ? "") != "") {
+//							visit(a_content) {
+//								case atext:"text"(text_content): {
+//									map[str,value] datatype_info = (
+//										"name":text_content,
+//										"url":|http://developer.android.com<alink@href>|,
+//										"package_path":replaceAll(substring(alink@href, 11, size(alink@href) - 5), "/", ".")
+//									);
+//									dataTypes += {datatype_info};
+//								}
+//							}
+//						}
+//					}
+//					// Get Text.
+//		  			visit(h4_content){
+//						case text:"text"(method_sig): methodName += method_sig;
+//					}
+//				}
+//				case apidiv:"div"(div_content): if((apidiv@class ? "") == "api-level") {
+//					visit(div_content) {
+//						case text:"text"(api_level): apiLevel += api_level;
+//					}
+//				}
+//			}
+//			map[str,value] method = (
+//				"sig" : methodName,
+//				"api" : apiLevel,
+//				"information": extractInformationFromSignature(entry_type, methodName, dataTypes = dataTypes)
+//			);
+//
+//			switch(entry_type) {
+//				case "Public Methods":  methodSet += {method};
+//				case "Public Constructors": constructorSet += {method};
+//				case "Constants": constantSet += {method};
+//				case "Fields": fieldSet += {method};
+//				case "Protected Methods": methodSet += {method};
+//			}
+//		}
+//	}
+//
+//	map[str,set[map[str,value]]] classDescription = (
+//		"methods": methodSet,
+//		"constants": constantSet,
+//		"fields": fieldSet,
+//		"constructors": constructorSet
+//		//"innerclasses": "TODO"
+//	);
+//
+//	return classDescription;
+//}
 
 public map[str,value] extractClassSig(loc classInformationUrl){
 	node html = readHTMLFile(classInformationUrl);
@@ -247,8 +332,8 @@ public map[str,value] extractClassSig(loc classInformationUrl){
 				} 
 						
 			}
-			//println(class_sig);
-			println(parse(#ClassDef,class_sig));
+			println(class_sig);
+			//println(parse(#ClassDef,class_sig));
 		}
 	}
 	map[str,value] classSignature = ();
@@ -273,51 +358,48 @@ private Type getTypeFromUrl(str url){
 	return  \type(substring(url, findLast(url, "/") + 1, size(url) - 5), replaceAll(substring(url, 11, findLast(url,"/")), "/", "."));
 }
 
-public void extractInformationFromMethodSignature()
-{}
-
-public map[str,value] extractInformationFromSignature(str sectionType, str signature, set[map[str,value]] dataTypes = {}) {
-	map[str,value] extractedInformation = ();
-	
-	
-	
-	
-	switch (sectionType) {
-		case "Constants": {
-			// extractInformationFromSignature("Constants", "public static final int fade_in");	
-			if (/<visibility:public|private|protected>? *<state1:static|abstract|final>? *<state2:static|abstract|final>? *<dtype:[a-zA-Z0-9_\-\.]*> *<pname:[a-zA-Z0-9_\-]*>/ := signature) {
-				extractedInformation += (
-					"visibility": visibility,
-					"state": "<state1> <state2>",
-					"dtype": dtype,
-					"property_name": pname
-				);
-			}
-		}
-		case "Public Methods": {
-			// extractInformationFromSignature("Public Methods", "public void setFeature (String name, boolean value)");
-			if (/<visibility:public|private|protected>? *<state1:static|abstract|final>? *<state2:static|abstract|final>? *<dtype:[a-zA-Z0-9_\-\.]*> *<mname:[a-zA-Z0-9_\-]*> *\(<params:.*>\)/ := signature) {
-			
-				list[str] params = split(",", params);
-				list[value] splittedparam = [];
-				for (param <- params) {
-					splittedparam += split(" ", trim(param));
-					
-					// TODO: Matching data type information.
-					
-				}
-			
-			
-				extractedInformation += (
-					"visibility": visibility,
-					"state": trim("<state1> <state2>"),
-					"type": dtype,
-					"method_name": mname,
-					"parameters": splittedparam
-				);
-			}
-		}
-	}
-	
-	return extractedInformation;
-}
+//public map[str,value] extractInformationFromSignature(str sectionType, str signature, set[map[str,value]] dataTypes = {}) {
+//	map[str,value] extractedInformation = ();
+//
+//
+//
+//
+//	switch (sectionType) {
+//		case "Constants": {
+//			// extractInformationFromSignature("Constants", "public static final int fade_in");
+//			if (/<visibility:public|private|protected>? *<state1:static|abstract|final>? *<state2:static|abstract|final>? *<dtype:[a-zA-Z0-9_\-\.]*> *<pname:[a-zA-Z0-9_\-]*>/ := signature) {
+//				extractedInformation += (
+//					"visibility": visibility,
+//					"state": "<state1> <state2>",
+//					"dtype": dtype,
+//					"property_name": pname
+//				);
+//			}
+//		}
+//		case "Public Methods": {
+//			// extractInformationFromSignature("Public Methods", "public void setFeature (String name, boolean value)");
+//			if (/<visibility:public|private|protected>? *<state1:static|abstract|final>? *<state2:static|abstract|final>? *<dtype:[a-zA-Z0-9_\-\.]*> *<mname:[a-zA-Z0-9_\-]*> *\(<params:.*>\)/ := signature) {
+//
+//				list[str] params = split(",", params);
+//				list[value] splittedparam = [];
+//				for (param <- params) {
+//					splittedparam += split(" ", trim(param));
+//
+//					// TODO: Matching data type information.
+//
+//				}
+//
+//
+//				extractedInformation += (
+//					"visibility": visibility,
+//					"state": trim("<state1> <state2>"),
+//					"type": dtype,
+//					"method_name": mname,
+//					"parameters": splittedparam
+//				);
+//			}
+//		}
+//	}
+//
+//	return extractedInformation;
+//}
