@@ -8,7 +8,7 @@ import Location;
 import String;
 import Template;
 import ParseTree;
-import SignatureParser;
+import ClassSigParser;
 
 
 //annotations
@@ -19,13 +19,11 @@ anno str node@class;
 
 // |http://developer.android.com/reference/packages.html|
 
-/* testing class, under construction much!
-// still need to find out how the implode works
-// so a ADT can be build :) */
 public void parseTester(){
 	
-	node ast = implode(#node,parse(#ClassDef,"public class naam"));
-	//println(ast);
+	appendToFile(|project://HTML/bin/results.txt|,parse(#MethodDef,"public static void MethodeNaam (Param p, Param b)"));
+	//appendToFile(|project://HTML/bin/results.txt|,parse(#ClassDef,"public static class NAAM extends extender Hoppa implements impleme/nter impl more imp"));
+	//implode(#node,parse(#ClassDef,"public static class NAAM extends object object/link"));
 }
 
 public void main() {
@@ -260,8 +258,13 @@ public map[str,value] extractClassSig(loc classInformationUrl){
 			println(parse(#ClassDef,class_sig));
 		}
 	}
+<<<<<<< HEAD
 	map[str,value] classSignature = ();
+	if(/\s<words:.*>extends\s+<ex:.*>implements\w*<imp:.*>/ := class_sig) 
+=======
+	set[map[str,value]] classSignature = {};
 	if(/\s<words:.*>(extends\s+<ex:.*>)?(implements\s+<imp:.*>)?/ := class_sig) 
+>>>>>>> SigParser (also for methods :) )!
 	{
 	  println("words + <words>");
 

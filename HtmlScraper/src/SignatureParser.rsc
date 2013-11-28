@@ -2,13 +2,15 @@ module SignatureParser
 
 //grammar for class signatures
 layout Spaces = [\t\ \n]*;
-lexical Iden = [a-zA-Z/.\[\]]+;
-lexical Link = [a-zA-Z/.]+;
+lexical Iden = [a-zA-Z/.\[\]()]+;
+lexical Link = [a-zA-Z/.\[\]()]+;
+
 // public static class ClassName extends extender implements implementer link implementer2 link2
+
 syntax ClassDef
-  = class: Modifiers+ "class" Iden ExtendsClause ImplementsClause
-  |interface: Modifiers+ "interface" Iden ExtendsClause ImplementsClause //Modifiers "interface" //Id ExtendsClause ImplementsClause
-  |enum: Modifiers+ "enum" Iden ExtendsClause ImplementsClause
+  = Modifiers+ "class" Iden ExtendsClause ImplementsClause
+  | Modifiers+ "interface" Iden ExtendsClause ImplementsClause //Modifiers "interface" //Id ExtendsClause ImplementsClause
+  | Modifiers+ "enum" Iden ExtendsClause ImplementsClause
   ;
   
  //possible modifiers
@@ -25,14 +27,16 @@ lexical Modifiers
 //will be of the form Object reference/linktoObject.html
 syntax ExtendsClause 
   = empty:
-  | nonEmpty: "extends" (Iden Link)+
+  | nonEmpty: "extends" IdenLink+
   ;
   
 syntax ImplementsClause 
   = empty:
-  | nonEmpty: "implements" (Iden Link)+
+  | nonEmpty: "implements" IdenLink+
   ;
 
+syntax IdenLink
+= Iden Link;
   //grammar for methods
   // modifiers return name (parameters)
   syntax MethodDef
