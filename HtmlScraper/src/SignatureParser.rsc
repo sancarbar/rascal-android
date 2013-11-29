@@ -4,7 +4,7 @@ import IO;
 
 //grammar for class signatures
 layout Spaces = [\t\ \n]* !>> [\t\ \n]; 
-lexical Iden = [a-zA-Z/\\.\[\]()0-9]+ !>> [a-zA-Z/\\.\[\]()0-9];
+lexical Iden = [a-zA-Z/\\.\[\]()0-9\<\>]+ !>> [a-zA-Z/\\.\[\]()0-9\<\>];
 
 // public static class ClassName extends extender implements implementer link implementer2 link2
 
@@ -43,7 +43,11 @@ syntax IdenLink
   // modifiers return name (parameters)
  
  syntax MethodDef
-  = method: Modifiers+ ReturnType Iden "(" Params+ ")";
+  = method: Modifiers+ ReturnType Iden "(" Params+ ")" 
+  | constant: Modifiers+ ReturnType Iden //same as fields?
+  | fields: Modifiers+ ReturnType Iden
+  | constructor: Modifiers+ Iden "(" Params+ ")"
+  ;
   
  syntax ReturnType
   = re: Iden;
@@ -52,7 +56,7 @@ syntax IdenLink
   // (Param p,) should have a comma (also (Param p, param p2,)). ? does not work as might have :(
  syntax Params
   = empty:
-  | nonempty: Iden Iden ","
+  | nonempty: Iden
   ;
   
   /* testing class, under construction much!

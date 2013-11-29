@@ -249,39 +249,40 @@ public map[str,value] extractClassSig(loc classInformationUrl){
 			//println("class + <class_sig>");
 		}
 	}
-	
 	//to remove the last space and avoid parse errors.
 	int i = size(class_sig);
 	class_sig = class_sig[0..i-1];
 
 	map[str,value] classSignature = ();
+	list[map[str,value]] impSet = [];
 	node class_AST = parseClassToAST(class_sig);
 	println(class_AST);
 	visit(class_AST){
 	//v1 = modifiers, v2 = name, v3= list of extenders, v4 = list of implementers
 		case "class"(v1,v2,v3,v4):{
-			classSignature["state"] = v1; //println(v1);
-			classSignature["name"] = v2; //println(v2);
-			println(v3);
-			println(v4);
+			classSignature["state"] = v1; 
+			classSignature["name"] = v2; 
+			visit(v3){
+				case ex:"extends"(l):{
+					visit(l){
+						case "link"(l1,l2):{ 
+							classSignature["extends"] =  ("url":l2, "type":getTypeFromUrl(l2));
+						}
+					}
+				}
+			}
+			visit(v4){
+				case impl:"implements"(im):{
+					visit(im){			
+						case "link"(i1,i2):{ 
+						    //map(implements: {()
+							impSet += ("url":i2, "type":getTypeFromUrl(i2));
+						}
+					}
+					classSignature["implements"] = impSet;
+				}
+			}
 		} 
-	}
-	
-	println("classy + <classSignature["state"]>");
-	
-	if(/\s<words:.*>(extends\s+<ex:.*>)?(implements\s+<imp:.*>)?/ := class_sig) 
-	{
-	  println("words + <words>");
-
-	  if(/<state:.*>\s+<name:\w+>/ := words)
-	  {
-	    classSignature["state"] = state;
-	    classSignature["name"] = name;
-	  }
-	  str url = trim(substring(ex,findFirst(ex,"/"),size(ex)));
-	  classSignature["extends"] =  ("url":url, "type":getTypeFromUrl(url));
-	  classSignature ["implements"] = [("url" : i, "type": getTypeFromUrl(i)) | i <- split(" ",imp), contains(i,"/reference")];
-
 	}
 	return classSignature;
 }
