@@ -41,22 +41,31 @@ public void buildProject() {
 	for (package_info <- getPackages(project)) {
 		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"]);
 		for (class <- information["classes"]) {
-			//text(class);
 			url = class["url"];
 			methods = getMethodsOfClass(url);
 			println("url <url>");
-			//text(methods);
 
+			// Get methods
+			lrel[str name, Type returnType, lrel[str, Type] arguments] parsedMethods = [];
 			for(method <- methods) {
-				str signature = getConstructSignature(method);
-				println(signature);
-				println(getConstructName(signature));
-				println("----------------------");
+				str methodSignature = getConstructSignature(method);
+				str methodName = getConstructName(methodSignature);
+				Type methodReturnType = getConstructType(methodName, methodSignature, method);
+				list[str] argumentSignatures = getConstructArgumentSignatures(methodSignature);
+
+				// Get arguments of method
+				lrel[str, Type] arguments = [];
+				for (argumentSignature <- argumentSignatures) {
+					str argumentName = getConstructName(argumentSignature);
+					Type argumentType = getConstructType(argumentName, argumentSignature, method);
+					arguments += <argumentName, argumentType>;
+				}
+
+				parsedMethods += <methodName, methodReturnType, arguments>;
 			}
 
-			//lrel[str name, Type returnType, lrel[str, Type] arguments] methodss = [<"a", \void(), []> | method <- methods];
 			//createClassFile(class["package_path"], class["name"], [], class["sig"].extends, class["sig"]["implements"]);
-			//createClassFile(class["package_path"], class["name"], []);
+			createClassFile(class["package_path"], class["name"], parsedMethods);
 		}
 	}
 }
@@ -129,8 +138,8 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 												"sig" : "TODO", //extractClassSig(|http://developer.android.com<alink@href>|),
 												"name":text_content,
 												"url":|http://developer.android.com<alink@href>|,
-												"package_path":replaceAll(substring(alink@href, 11, findLast(alink@href, "/")), "/", ""),
-												"information":getClassInformation(|http://developer.android.com<alink@href>|)
+												"package_path": substring(alink@href, 11, findLast(alink@href, "/"))
+												//"information":getClassInformation(|http://developer.android.com<alink@href>|)
 											);
 											// Group by class type.
 											switch (entry_type)
@@ -199,9 +208,15 @@ private map[str, list[list[node]]] getClassConstructs(loc classUrl) {
 		}
 		case div:"div"(divMethod): if(/jd-details / := (div@class ? "")) {
 			list[node] constructNode;
+			str apiLevel = "";
 			visit(divMethod) {
 				case header:"h4"(h4Content): if ((header@class ? "" ) == "jd-details-title") {
 					constructNode = h4Content;
+				}
+				case divApi:"div"(divContent): if((divApi@class ? "") == "api-level") {
+					visit(divContent) {
+						case text:"text"(apiLevelContent): apiLevel = apiLevelContent;
+					}
 				}
 			}
 			switch(construct) {
@@ -235,88 +250,38 @@ public str getConstructSignature(list[node] constructNodes) {
 
 public str getConstructName(str constructSignature) {
 	str name = "";
-	if (/(public|private|protected)?\s*(static|abstract|final){0,3}\s*[a-zA-Z0-9_\-\.]*\s*<constructName:[a-zA-Z0-9_\-]*>/ := constructSignature) {
+	if (/(public|private|protected)?\s*(static|abstract|final){0,3}\s*[a-zA-Z0-9_\-\.\[\]]*\s*<constructName:[a-zA-Z0-9_\-]*>/ := constructSignature) {
 		name = constructName;
 	}
 	return name;
 }
 
-//public map[str, set[map[str,value]]] getClassInformation(loc classInformationUrl) {
-//	node html = readHTMLFile(classInformationUrl);
-//
-//	str entry_type = "";
-//
-//	set[map[str,value]] methodSet = {};
-//	set[map[str,value]] constantSet = {};
-//	set[map[str,value]] fieldSet = {};
-//	set[map[str,value]] constructorSet = {};
-//
-//	set[map[str,value]] dataTypes = {};
-//
-//	visit(html){
-//		case h2_elem:"h2"(h2_content): {
-//			visit(h2_content) {
-//				case text_elem:"text"(text_content): entry_type = text_content;
-//			}
-//		}
-//		case div:"div"(div_method): if(/jd-details / := (div@class ? "")) {
-//			str methodName = "";
-//			str apiLevel = "";
-//
-//			visit(div_method) {
-//				case header:"h4"(h4_content): if((header@class ? "" ) == "jd-details-title") {
-//					// Get urls
-//					visit(h4_content){
-//						case alink:"a"(a_content): if((alink@href ? "") != "") {
-//							visit(a_content) {
-//								case atext:"text"(text_content): {
-//									map[str,value] datatype_info = (
-//										"name":text_content,
-//										"url":|http://developer.android.com<alink@href>|,
-//										"package_path":replaceAll(substring(alink@href, 11, size(alink@href) - 5), "/", ".")
-//									);
-//									dataTypes += {datatype_info};
-//								}
-//							}
-//						}
-//					}
-//					// Get Text.
-//		  			visit(h4_content){
-//						case text:"text"(method_sig): methodName += method_sig;
-//					}
-//				}
-//				case apidiv:"div"(div_content): if((apidiv@class ? "") == "api-level") {
-//					visit(div_content) {
-//						case text:"text"(api_level): apiLevel += api_level;
-//					}
-//				}
-//			}
-//			map[str,value] method = (
-//				"sig" : methodName,
-//				"api" : apiLevel,
-//				"information": extractInformationFromSignature(entry_type, methodName, dataTypes = dataTypes)
-//			);
-//
-//			switch(entry_type) {
-//				case "Public Methods":  methodSet += {method};
-//				case "Public Constructors": constructorSet += {method};
-//				case "Constants": constantSet += {method};
-//				case "Fields": fieldSet += {method};
-//				case "Protected Methods": methodSet += {method};
-//			}
-//		}
-//	}
-//
-//	map[str,set[map[str,value]]] classDescription = (
-//		"methods": methodSet,
-//		"constants": constantSet,
-//		"fields": fieldSet,
-//		"constructors": constructorSet
-//		//"innerclasses": "TODO"
-//	);
-//
-//	return classDescription;
-//}
+public Type getConstructType(str constructName, str constructSignature, list[node] constructNodes) {
+	str typeName = "";
+	if (/<constructTypeName:[a-zA-Z0-9_\-\.\[\]]*>\s*<constructName>/ := constructSignature) {
+		typeName = constructTypeName;
+	}
+	Type constructType = getTypeFromString(typeName);
+
+	if (constructType is \type) {
+		visit(constructNodes) {
+			case aLink:"a"(aContent): if((aLink@href ? "") != "") {
+				visit(aContent) {
+					case aText:"text"(textContent): {
+						return getTypeFromUrl(aLink@href); // return is necessary! The first link & text found is the one we need.
+					}
+				}
+			}
+		}
+	}
+	return constructType;
+}
+
+public list[str] getConstructArgumentSignatures(str constructSignature) {
+	if (/\(<params:.*>\)/ := constructSignature) {
+		return [ trim(param) | param <- split(",", params), !isEmpty(trim(param)) ];
+	}
+}
 
 public map[str,value] extractClassSig(loc classInformationUrl){
 	node html = readHTMLFile(classInformationUrl);
@@ -354,8 +319,28 @@ public map[str,value] extractClassSig(loc classInformationUrl){
 	return classSignature;
 }
 
+private Type getTypeFromString(str typeName) {
+	if (typeName == "void") {
+		return \void();
+	} else if (endsWith(typeName, "[]")) {
+		return \array(getTypeFromString(substring(typeName, 0, size(typeName) - 2)));
+	} else if (typeName in ["byte", "short", "int", "long", "float", "double", "char", "String", "boolean", "Object", "Class"]) {
+		return \primitive(typeName);
+	} else {
+		return \type("", typeName);
+	}
+}
+
 private Type getTypeFromUrl(str url){
-	return  \type(substring(url, findLast(url, "/") + 1, size(url) - 5), replaceAll(substring(url, 11, findLast(url,"/")), "/", "."));
+	return  \type(getPackageNameFromUrl(url), getTypeNameFromUrl(url));
+}
+
+private str getPackageNameFromUrl(str url) {
+	return replaceAll(substring(url, 11, findLast(url, ".")), "/", ".");
+}
+
+private str getTypeNameFromUrl(str url) {
+	return substring(url, findLast(url, "/") + 1, size(url) - 5);
 }
 
 //public map[str,value] extractInformationFromSignature(str sectionType, str signature, set[map[str,value]] dataTypes = {}) {
