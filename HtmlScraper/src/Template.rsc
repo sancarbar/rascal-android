@@ -5,7 +5,7 @@ import IO;
 import Set;
 import List;
 
-data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName);
+data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \array(Type arrayType);
 
 // Creates Java file
 public void createClassFile(str packagePath, str name, lrel[str name, Type returnType, lrel[str, Type] arguments] methods, Type superClass = \void(), list[Type] interfaces = []) {
@@ -83,28 +83,39 @@ private str genImplements(list[Type] interfaces){
 }
 
 // Helper functions to generate a method
-private str genMethod(str name, \void(), lrel[str, Type] arguments) {
-  return "\tpublic void <name>(<genArgumentsString(arguments)>) { };";
-}
 private str genMethod(str name, returnType, lrel[str, Type] arguments) {
-  return "\tpublic <returnType.typeName> <name>(<genArgumentsString(arguments)>) { return <getReturnTypeDefaultValue(returnType)>; };";
-}
-
-private str getReturnTypeDefaultValue(Type returnType) {
-	if (returnType is \type) {
-		return "null";
-	} else {
-		switch (returnType.typeName) {
-			case /char/: return "\'\u0000\'";
-			case /boolean/: return "false";
-			default: return "0";
-		}
-	}
+  return "\tpublic <printType(returnType)> <name>(<genArgumentsString(arguments)>) { <getDefaultReturnTypeValue(returnType)> };";
 }
 
 // Helper function to generate an argument string
 public str genArgumentsString(lrel[str name, Type argType] arguments){
-	return intercalate(", ", ["<arg.argType.typeName> <arg.name>" | arg <- arguments]);
+	return intercalate(", ", ["<printType(arg.argType)> <arg.name>" | arg <- arguments]);
+}
+
+private str printType(Type aType) {
+	switch (aType) {
+		case \void(): return "void";
+		case \primitive(str typeName): return typeName;
+		case \type(str packageName, str typeName): return typeName;
+		case \array(Type arrayType): return printType(arrayType) + "[]";
+	}
+}
+
+private str getDefaultReturnTypeValue(Type returnType) {
+	switch (returnType) {
+		case \void(): return "";
+		case \primitive(str typeName): {
+			switch (returnType.typeName) {
+				case /char/: return "return \'\u0000\';";
+				case /boolean/: return "return false;";
+				case /String/: return "return \"\";";
+				case /Object/: return "return null;";
+				default: return "return 0;";
+			}
+		}
+		case \type(str packageName, str typeName): return "return null;";
+		case \array(Type arrayType): return "return null;";
+	}
 }
 
 //Examples:
