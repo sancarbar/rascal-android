@@ -8,7 +8,7 @@ import List;
 data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \array(Type arrayType);
 
 // Creates Java file
-public void createClassFile(str packagePath, str name, lrel[str name, Type returnType, lrel[str, Type] arguments] methods, Type superClass = \void(), list[Type] interfaces = []) {
+public void createClassFile(str packagePath, str name, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods, Type superClass = \void(), list[Type] interfaces = []) {
 	str packageName = replaceAll(packagePath, "/", ".");
 	loc packageLoc = |project://Android/src| + packagePath;
 	if(!exists(packageLoc)) {
@@ -23,7 +23,7 @@ public str getFileName(str name, str ext){
 }
 
 // Helper function to generate a class
-public str genClass(str packageName, str name, lrel[str name, Type returnType, lrel[str, Type] arguments] methods, Type superClass, list[Type] interfaces) {
+public str genClass(str packageName, str name, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods, Type superClass, list[Type] interfaces) {
   return
   	"package <packageName>;
   	'
@@ -31,13 +31,13 @@ public str genClass(str packageName, str name, lrel[str name, Type returnType, l
     '
     'public class <name><genExtend(superClass)><genImplements(interfaces)> {
     '<for (method <- methods) {>
-    	'<genMethod(method.name, method.returnType, method.arguments)>
+    	'<genMethod(method.name, method.modifiers, method.returnType, method.arguments)>
     '<}>
     '}";
 }
 
 // Helper function to generate the imports
-private str genImports(lrel[str name, Type returnType, lrel[str argName, Type argType] arguments] methods, Type superClass, list[Type] interfaces) {
+private str genImports(lrel[str name, str modifiers, Type returnType, lrel[str argName, Type argType] arguments] methods, Type superClass, list[Type] interfaces) {
 	set[str] imports = {};
 	if(superClass is \type){
 		imports += genImport(superClass);
@@ -83,8 +83,8 @@ private str genImplements(list[Type] interfaces){
 }
 
 // Helper functions to generate a method
-private str genMethod(str name, returnType, lrel[str, Type] arguments) {
-  return "\tpublic <printType(returnType)> <name>(<genArgumentsString(arguments)>) { <getDefaultReturnTypeValue(returnType)> };";
+private str genMethod(str name, str modifiers, returnType, lrel[str, Type] arguments) {
+  return "\t<modifiers><printType(returnType)> <name>(<genArgumentsString(arguments)>) { <getDefaultReturnTypeValue(returnType)> };";
 }
 
 // Helper function to generate an argument string

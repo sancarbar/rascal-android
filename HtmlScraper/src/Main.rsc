@@ -46,10 +46,11 @@ public void buildProject() {
 			println("url <url>");
 
 			// Get methods
-			lrel[str name, Type returnType, lrel[str, Type] arguments] parsedMethods = [];
+			lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] parsedMethods = [];
 			for(method <- methods) {
 				str methodSignature = getConstructSignature(method);
 				str methodName = getConstructName(methodSignature);
+				str methodModifiers = getConstructModifiers(methodSignature);
 				Type methodReturnType = getConstructType(methodName, methodSignature, method);
 				list[str] argumentSignatures = getConstructArgumentSignatures(methodSignature);
 
@@ -61,7 +62,7 @@ public void buildProject() {
 					arguments += <argumentName, argumentType>;
 				}
 
-				parsedMethods += <methodName, methodReturnType, arguments>;
+				parsedMethods += <methodName, methodModifiers, methodReturnType, arguments>;
 			}
 
 			//createClassFile(class["package_path"], class["name"], [], class["sig"].extends, class["sig"]["implements"]);
@@ -250,10 +251,18 @@ public str getConstructSignature(list[node] constructNodes) {
 
 public str getConstructName(str constructSignature) {
 	str name = "";
-	if (/(public|private|protected)?\s*(static|abstract|final){0,3}\s*[a-zA-Z0-9_\-\.\[\]]*\s*<constructName:[a-zA-Z0-9_\-]*>/ := constructSignature) {
+	if (/(public|private|protected|static|abstract|final|\s)*[a-zA-Z0-9_\-\.\[\]]*\s*<constructName:[a-zA-Z0-9_\-]*>/ := constructSignature) {
 		name = constructName;
 	}
 	return name;
+}
+
+public str getConstructModifiers(str constructSignature) {
+	str modifiers = "";
+	if (/<modifierNames:(public|private|protected|static|abstract|final|\s)*>/ := constructSignature) {
+		modifiers = modifierNames;
+	}
+	return modifiers;
 }
 
 public Type getConstructType(str constructName, str constructSignature, list[node] constructNodes) {
@@ -360,49 +369,3 @@ private str getPackageNameFromUrl(str url) {
 private str getTypeNameFromUrl(str url) {
 	return substring(url, findLast(url, "/") + 1, size(url) - 5);
 }
-
-//public map[str,value] extractInformationFromSignature(str sectionType, str signature, set[map[str,value]] dataTypes = {}) {
-//	map[str,value] extractedInformation = ();
-//
-//
-//
-//
-//	switch (sectionType) {
-//		case "Constants": {
-//			// extractInformationFromSignature("Constants", "public static final int fade_in");
-//			if (/<visibility:public|private|protected>? *<state1:static|abstract|final>? *<state2:static|abstract|final>? *<dtype:[a-zA-Z0-9_\-\.]*> *<pname:[a-zA-Z0-9_\-]*>/ := signature) {
-//				extractedInformation += (
-//					"visibility": visibility,
-//					"state": "<state1> <state2>",
-//					"dtype": dtype,
-//					"property_name": pname
-//				);
-//			}
-//		}
-//		case "Public Methods": {
-//			// extractInformationFromSignature("Public Methods", "public void setFeature (String name, boolean value)");
-//			if (/<visibility:public|private|protected>? *<state1:static|abstract|final>? *<state2:static|abstract|final>? *<dtype:[a-zA-Z0-9_\-\.]*> *<mname:[a-zA-Z0-9_\-]*> *\(<params:.*>\)/ := signature) {
-//
-//				list[str] params = split(",", params);
-//				list[value] splittedparam = [];
-//				for (param <- params) {
-//					splittedparam += split(" ", trim(param));
-//
-//					// TODO: Matching data type information.
-//
-//				}
-//
-//
-//				extractedInformation += (
-//					"visibility": visibility,
-//					"state": trim("<state1> <state2>"),
-//					"type": dtype,
-//					"method_name": mname,
-//					"parameters": splittedparam
-//				);
-//			}
-//		}
-//	}
-//
-//	return extractedInformation;
-//}
