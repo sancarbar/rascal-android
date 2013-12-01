@@ -83,8 +83,16 @@ private str genImplements(list[Type] interfaces){
 }
 
 // Helper functions to generate a method
-private str genMethod(str name, str modifiers, returnType, lrel[str, Type] arguments) {
-  return "\t<modifiers><printType(returnType)> <name>(<genArgumentsString(arguments)>) { <getDefaultReturnTypeValue(returnType)> };";
+private str genMethod(str name, str modifiers, Type returnType, lrel[str, Type] arguments) {
+	return "\t<modifiers><printType(returnType)> <name>(<genArgumentsString(arguments)>)<genMethodBody(modifiers, returnType)>;";
+}
+
+private str genMethodBody(str modifiers, Type returnType) {
+	str methodBody = "";
+	if (!contains(modifiers, "abstract")) {
+		methodBody = " { <getDefaultReturnTypeValue(returnType)> }";
+	}
+	return methodBody;
 }
 
 // Helper function to generate an argument string
