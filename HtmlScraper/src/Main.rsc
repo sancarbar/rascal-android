@@ -291,7 +291,7 @@ public list[str] getConstructArgumentSignatures(str constructSignature) {
 	}
 }
 
-public map[str,value] extractClassSig(loc classInformationUrl){
+public str extractClassSig(loc classInformationUrl){
 	node html = readHTMLFile(classInformationUrl);
 	str class_sig = "";
 	visit(html){
@@ -307,56 +307,87 @@ public map[str,value] extractClassSig(loc classInformationUrl){
 		}
 	}
 	//to remove the last space and avoid parse errors.
-	class_sig = trim(class_sig);
+	return trim(class_sig);
 	//int i = size(class_sig);
 	//class_sig = class_sig[0..i-1];
 
-	map[str,value] classSignature = ();
-	list[map[str,value]] impSet = [];
-	node class_AST = parseClassToAST(class_sig);
-	//println(class_AST);
-	visit(class_AST){
-		case "class"(v1,v2,v3,v4):{
-			classSignature["type"] = "class";
-			return getOtherInformation(v1,v2,v3,v4,classSignature);
-		}
-		case "interface"(v1,v2,v3,v4):{
-			classSignature["type"] = "interface";
-			return getOtherInformation(v1,v2,v3,v4,classSignature);
-		}
-		case "enum"(v1,v2,v3,v4):{
-			classSignature["type"] = "enum";
-			return getOtherInformation(v1,v2,v3,v4,classSignature);
-		}
+}
 
+public str getClassName(node ast){
+
+		visit(ast){
+		case "class"(_,name,_,_):{
+			return name;
+		}
+		case "interface"(_,name,_,_):{
+			return name;
+		}
+		case "enum"(_,name,_,_):{
+			return name;
+		}
+	}
+	
+}
+
+public str getClassType(node ast){
+
+	visit(ast){
+		case "class"(_,_,_,_):{
+			return "class";
+			
+		}
+		case "interface"(_,_,_,_):{
+			return "interface";
+		}
+		case "enum"(_,_,_,_):{
+			return "enum";
+		}
+	
+	}
+	
+}
+
+public Type getExtenders(node ast){
+
+	visit(ast){
+		case ex:"extends"(l):{
+			visit(l){
+				case "link"(l1,l2):{ 
+					return getTypeFromUrl(l2); 
+				}
+			}
+		}
 	}
 }
 
-public map[str,value] getOtherInformation(list[str] v1, str v2, node v3, node v4 ,map[str,value] classSignature)
-{
-		list[map[str,value]] impSet = [];
-		classSignature["state"] = v1; 
-		//classSignature["name"] = v2; 
-		visit(v3){
-			case ex:"extends"(l):{
-				visit(l){
-					case "link"(l1,l2):{ 
-						classSignature["extends"] =  ("url":l2, "type":getTypeFromUrl(l2));
-					}
+public list[Type] getImplements(node ast){
+	list[Type] impSet = [];
+	
+	visit(ast){
+		case impl:"implements"(im):{
+			visit(im){			
+				case "link"(i1,i2):{ 
+					impSet += getTypeFromUrl(i2);
 				}
 			}
 		}
-		visit(v4){
-			case impl:"implements"(im):{
-				visit(im){			
-					case "link"(i1,i2):{ 
-						impSet += ("url":i2, "type":getTypeFromUrl(i2));
-					}
-				}
-				classSignature["implements"] = impSet;
-			}
+	}
+	return impSet;
+}
+
+public list[str] getModifiers(node ast){
+	
+	visit(ast){
+		case "class"(v1,_,_,_):{
+			return v1;
 		}
-	return classSignature;
+		case "interface"(v1,_,_,_):{
+			return v1;
+		}
+		case "enum"(v1,_,_,_):{
+			return v1;
+		}
+	}
 }
 
 private Type getTypeFromString(str typeName) {
