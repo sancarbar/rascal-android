@@ -4,7 +4,6 @@ import IO;
 import lang::html::IO;
 import Set;
 import util::ValueUI;
-import Location;
 import String;
 import Template;
 import ParseTree;
@@ -136,7 +135,7 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 									visit(a_content) {
 										case atext:"text"(text_content): { 
 											map[str,value] package_info = (
-												"sig" : "TODO", //extractClassSig(|http://developer.android.com<alink@href>|),
+												"sig" : extractClassSig(|http://developer.android.com<alink@href>|),
 												"name":text_content,
 												"url":|http://developer.android.com<alink@href>|,
 												"package_path": substring(alink@href, 11, findLast(alink@href, "/"))
@@ -305,44 +304,58 @@ public map[str,value] extractClassSig(loc classInformationUrl){
 				} 
 						
 			}
-			//println("class + <class_sig>");
 		}
 	}
 	//to remove the last space and avoid parse errors.
-	int i = size(class_sig);
-	class_sig = class_sig[0..i-1];
+	class_sig = trim(class_sig);
+	//int i = size(class_sig);
+	//class_sig = class_sig[0..i-1];
 
 	map[str,value] classSignature = ();
 	list[map[str,value]] impSet = [];
 	node class_AST = parseClassToAST(class_sig);
-	println(class_AST);
+	//println(class_AST);
 	visit(class_AST){
-	//v1 = modifiers, v2 = name, v3= list of extenders, v4 = list of implementers
 		case "class"(v1,v2,v3,v4):{
-			classSignature["state"] = v1; 
-			classSignature["name"] = v2; 
-			visit(v3){
-				case ex:"extends"(l):{
-					visit(l){
-						case "link"(l1,l2):{ 
-							classSignature["extends"] =  ("url":l2, "type":getTypeFromUrl(l2));
-						}
-					}
-				}
-			}
-			visit(v4){
-				case impl:"implements"(im):{
-					visit(im){			
-						case "link"(i1,i2):{ 
-						    //map(implements: {()
-							impSet += ("url":i2, "type":getTypeFromUrl(i2));
-						}
-					}
-					classSignature["implements"] = impSet;
-				}
-			}
-		} 
+			classSignature["type"] = "class";
+			return getOtherInformation(v1,v2,v3,v4,classSignature);
+		}
+		case "interface"(v1,v2,v3,v4):{
+			classSignature["type"] = "interface";
+			return getOtherInformation(v1,v2,v3,v4,classSignature);
+		}
+		case "enum"(v1,v2,v3,v4):{
+			classSignature["type"] = "enum";
+			return getOtherInformation(v1,v2,v3,v4,classSignature);
+		}
+
 	}
+}
+
+public map[str,value] getOtherInformation(list[str] v1, str v2, node v3, node v4 ,map[str,value] classSignature)
+{
+		list[map[str,value]] impSet = [];
+		classSignature["state"] = v1; 
+		//classSignature["name"] = v2; 
+		visit(v3){
+			case ex:"extends"(l):{
+				visit(l){
+					case "link"(l1,l2):{ 
+						classSignature["extends"] =  ("url":l2, "type":getTypeFromUrl(l2));
+					}
+				}
+			}
+		}
+		visit(v4){
+			case impl:"implements"(im):{
+				visit(im){			
+					case "link"(i1,i2):{ 
+						impSet += ("url":i2, "type":getTypeFromUrl(i2));
+					}
+				}
+				classSignature["implements"] = impSet;
+			}
+		}
 	return classSignature;
 }
 
