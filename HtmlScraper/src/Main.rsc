@@ -18,7 +18,7 @@ anno str node@class;
 
 // |http://developer.android.com/reference/packages.html|
 
-public void main() {
+public void main(value api) {
 	loc project = |http://developer.android.com/reference/packages.html|;
 	
 	set[value] packages = {};
@@ -36,14 +36,14 @@ public void main() {
 	text(packages);
 }
 
-public void buildProject(int apiLevel) {
+public void buildProject(value api) {
 	loc project = |http://developer.android.com/reference/packages.html|;
 	for (package_info <- getPackages(project)) {
-		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"], apiLevel);
+		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"],api);
 		for (class <- information["classes"]) {
 			//url = |http://developer.android.com/reference/android/database/CursorJoiner.Result.html|; //class["url"];
 			url = class["url"];
-			classConstructs = getClassConstructs(url, apiLevel);
+			classConstructs = getClassConstructs(url, api);
 			println("url <url>");
 
 			// Get class information
@@ -89,6 +89,7 @@ public void buildProject(int apiLevel) {
 			}
 
 			// Get methods
+
 			lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] classMethods = [];
 			for(method <- classConstructs["methods"]) {
 				str methodSignature = getConstructSignature(method);
@@ -154,7 +155,7 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 	set[map[str,value]] enumsSet = {};
 	set[map[str,value]] errorSet = {};
 	
-	visit(html) {
+	visit(html){
 		// Get content div.
 		case parent_div_elem:"div"(div_content): if((parent_div_elem@id ? "") == "jd-content") {
 		
@@ -225,20 +226,20 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 	return packageDescription;
 }
 
-public list[list[node]] getMethodsOfClass(loc classUrl) {
-	return getClassConstructs(classUrl)["methods"];
+public list[list[node]] getMethodsOfClass(loc classUrl, value api) {
+	return getClassConstructs(classUrl, api)["methods"];
 }
 
-public list[list[node]] getConstructorsOfClass(loc classUrl) {
-	return getClassConstructs(classUrl)["constructors"];
+public list[list[node]] getConstructorsOfClass(loc classUrl, value api) {
+	return getClassConstructs(classUrl,api)["constructors"];
 }
 
-public list[list[node]] getConstantsOfClass(loc classUrl) {
-	return getClassConstructs(classUrl)["constants"];
+public list[list[node]] getConstantsOfClass(loc classUrl, value api) {
+	return getClassConstructs(classUrl, api)["constants"];
 }
 
-public list[list[node]] getFieldsOfClass(loc classUrl) {
-	return getClassConstructs(classUrl)["fields"];
+public list[list[node]] getFieldsOfClass(loc classUrl, value api) {
+	return getClassConstructs(classUrl,api)["fields"];
 }
 
 public int getClassAPI(loc classURL)
@@ -258,7 +259,7 @@ node ast = readHTMLFile(classURL);
 	}
 }
 
-public map[str, list[list[node]]] getClassConstructs(loc classUrl, int api) {
+public map[str, list[list[node]]] getClassConstructs(loc classUrl, value api) {
 	node html = readHTMLFile(classUrl);
 	list[list[node]] methods = [];
 	list[list[node]] constants = [];
@@ -276,7 +277,7 @@ public map[str, list[list[node]]] getClassConstructs(loc classUrl, int api) {
 		case div:"div"(divMethod): if(/jd-details / := (div@class ? "")) {
 			list[node] constructNode;
 			str apiLevel = "";
-			int apiLvl = 0;
+			value apiLvl = 0;
 			visit(divMethod) {
 				case header:"h4"(h4Content): if ((header@class ? "" ) == "jd-details-title") {
 					constructNode = h4Content;
@@ -287,7 +288,7 @@ public map[str, list[list[node]]] getClassConstructs(loc classUrl, int api) {
 						{
 							apiLevel = apiLevelContent;
 							if(/.*\s<lvl:[0-9]+>/ := apiLevel){
-							apiLvl = toInt(lvl);
+							apiLvl = lvl;
 							}
 							
 						}						
