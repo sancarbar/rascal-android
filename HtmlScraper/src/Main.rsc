@@ -117,7 +117,7 @@ public set[map[str,value]] getPackages(loc packageSummaryUrl) {
 	return packageSet;
 }
 
-public map[str, set[map[str, value]]] getPackageInformation(loc packageInformationUrl) {
+public map[str, set[map[str, value]]] getPackageInformation(loc packageInformationUrl, value api) {
 	node html = readHTMLFile(packageInformationUrl);
 	
 	set[str] urlSet = {};
@@ -154,21 +154,27 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 												"sig" : extractClassSig(|http://developer.android.com<alink@href>|),
 												"name":text_content,
 												"url":|http://developer.android.com<alink@href>|,
-												"package_path": substring(alink@href, 11, findLast(alink@href, "/"))
+												"package_path": substring(alink@href, 11, findLast(alink@href, "/")),
+												"api-level": getClassAPI(|http://developer.android.com<alink@href>|)
 												//"information":getClassInformation(|http://developer.android.com<alink@href>|)
 											);
 											// Group by class type.
-											switch (entry_type)
-											{
-												case "Classes": {
-													classSet += {package_info};
-													
-													//getClassInformation(|http://developer.android.com<package_info["url"]>|);
+											value apiLVL = package_info["api-level"];
+											if(apiLVL > api){
+													classSet += {};
 												}
-												case "Interfaces": interfaceSet += {package_info};
-												case "Exceptions": exceptionSet += {package_info};
-												case "Enums": enumsSet += {package_info};
-												case "Errors": errorSet += {package_info};
+											else{
+												switch (entry_type)
+												{
+													case "Classes": {
+														classSet += {package_info};
+														
+													}
+													case "Interfaces": interfaceSet += {package_info};
+													case "Exceptions": exceptionSet += {package_info};
+													case "Enums": enumsSet += {package_info};
+													case "Errors": errorSet += {package_info};
+												}
 											}
 										}
 									}
@@ -208,7 +214,24 @@ public list[list[node]] getFieldsOfClass(loc classUrl) {
 	return getClassConstructs(classUrl)["fields"];
 }
 
-private map[str, list[list[node]]] getClassConstructs(loc classUrl) {
+public int getClassAPI(loc classURL)
+{ 
+node ast = readHTMLFile(classURL);
+	visit(ast){
+		case div:"div"(class_API_container):if((div@class ? "") == "api-level"){
+			visit(class_API_container) {
+				case text:"text"(apiLevelContent):{
+					apiLevel = apiLevelContent;
+					if(/.*\s<lvl:[0-9]+>/ := apiLevel){
+					return toInt(lvl);
+					}
+				}						
+			}
+		}
+	}
+}
+
+public map[str, list[list[node]]] getClassConstructs(loc classUrl, int api) {
 	node html = readHTMLFile(classUrl);
 	list[list[node]] methods = [];
 	list[list[node]] constants = [];
@@ -225,22 +248,36 @@ private map[str, list[list[node]]] getClassConstructs(loc classUrl) {
 		case div:"div"(divMethod): if(/jd-details / := (div@class ? "")) {
 			list[node] constructNode;
 			str apiLevel = "";
+			int apiLvl = 0;
 			visit(divMethod) {
 				case header:"h4"(h4Content): if ((header@class ? "" ) == "jd-details-title") {
 					constructNode = h4Content;
 				}
 				case divApi:"div"(divContent): if((divApi@class ? "") == "api-level") {
 					visit(divContent) {
-						case text:"text"(apiLevelContent): apiLevel = apiLevelContent;
+						case text:"text"(apiLevelContent): 
+						{
+							apiLevel = apiLevelContent;
+							if(/.*\s<lvl:[0-9]+>/ := apiLevel){
+							apiLvl = toInt(lvl);
+							}
+							
+						}						
 					}
 				}
 			}
+			//do add the methods with the apiLevels that are higher than the version currently bui;d
+			if(apiLvl > api){
+				methods += [];
+			}
+			else{
 			switch(construct) {
 				case "Public Methods":  methods += [constructNode];
 				case "Public Constructors": constructors += [constructNode];
 				case "Constants": constants += [constructNode];
 				case "Fields": fields += [constructNode];
 				case "Protected Methods": methods += [constructNode];
+				}
 			}
 		}
 	}
@@ -310,7 +347,7 @@ public list[str] getConstructArgumentSignatures(str constructSignature) {
 public str extractClassSig(loc classInformationUrl){
 	node html = readHTMLFile(classInformationUrl);
 	str class_sig = "";
-	visit(html) {
+	visit(html){
 		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header") {
 			visit(div_class_sig) {
 				case text:"text"(text_content) :{ class_sig += text_content + " ";}
