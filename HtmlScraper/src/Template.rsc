@@ -8,14 +8,14 @@ import List;
 data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \array(Type arrayType);
 
 // Creates Java file
-public void createClassFile(str packagePath, str name, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods, Type superClass = \void(), list[Type] interfaces = []) {
+public void createClassFile(str packagePath, str classType, str name, str modifiers, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods, Type superClass, list[Type] interfaces) {
 	str packageName = replaceAll(packagePath, "/", ".");
 	loc packageLoc = |project://Android/src| + packagePath;
 	if(!exists(packageLoc)) {
 		mkDirectory(packageLoc);
 	}
 	loc classLoc = packageLoc + getFileName(name,".java");
-	appendToFile(classLoc, genClass(packageName, name, methods, superClass, interfaces));
+	appendToFile(classLoc, genClass(packageName, classType, name, modifiers, methods, superClass, interfaces));
 }
 
 public str getFileName(str name, str ext){
@@ -23,13 +23,13 @@ public str getFileName(str name, str ext){
 }
 
 // Helper function to generate a class
-public str genClass(str packageName, str name, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods, Type superClass, list[Type] interfaces) {
+public str genClass(str packageName, str classType, str name, str modifiers, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods, Type superClass, list[Type] interfaces) {
   return
   	"package <packageName>;
   	'
   	'<genImports(methods, superClass, interfaces)>
     '
-    'public class <name><genExtend(superClass)><genImplements(interfaces)> {
+    '<modifiers> <classType> <name><genExtend(superClass)><genImplements(interfaces)> {
     '<for (method <- methods) {>
     	'<genMethod(method.name, method.modifiers, method.returnType, method.arguments)>
     '<}>
@@ -62,7 +62,7 @@ private str genImport(\type(str packageName, _)) {
 }
 
 // Helper functions to generate an extend
-private str genExtend(\type(_, str typeName)){ 
+private str genExtend(\type(_, str typeName)) {
 	return " extends <typeName>";
 }
 private str genExtend(noExtend){ 

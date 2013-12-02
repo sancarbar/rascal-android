@@ -3,6 +3,7 @@ module Main
 import IO;
 import lang::html::IO;
 import Set;
+import List;
 import util::ValueUI;
 import String;
 import Template;
@@ -41,12 +42,28 @@ public void buildProject() {
 		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"]);
 		for (class <- information["classes"]) {
 			url = class["url"];
-			methods = getMethodsOfClass(url);
 			println("url <url>");
 
+			// Get class information
+			str classSignature = extractClassSig(url);
+			node classAst = parseClassToAST(classSignature);
+			str classType = getClassType(classAst);
+			str className = getClassName(classAst);
+			str classModifiers = intercalate(" ", getClassModifiers(classAst));
+			Type classSuperClass = getClassSuperClass(classAst);
+			list[Type] classInterfaces = getClassInterfaces(classAst);
+			lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] classMethods = [];
+
+			// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
+			if (classType == "interface") {
+				if (!isEmpty(classInterfaces)) {
+					classSuperClass = head(classInterfaces);
+					classInterfaces = [];
+				}
+			}
+
 			// Get methods
-			lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] parsedMethods = [];
-			for(method <- methods) {
+			for(method <- getMethodsOfClass(url)) {
 				str methodSignature = getConstructSignature(method);
 				str methodName = getConstructName(methodSignature);
 				str methodModifiers = getConstructModifiers(methodSignature);
@@ -61,11 +78,10 @@ public void buildProject() {
 					arguments += <argumentName, argumentType>;
 				}
 
-				parsedMethods += <methodName, methodModifiers, methodReturnType, arguments>;
+				classMethods += <methodName, methodModifiers, methodReturnType, arguments>;
 			}
 
-			//createClassFile(class["package_path"], class["name"], [], class["sig"].extends, class["sig"]["implements"]);
-			createClassFile(class["package_path"], class["name"], parsedMethods);
+			createClassFile(class["package_path"], classType, className, classModifiers, classMethods, classSuperClass, classInterfaces);
 		}
 	}
 }
@@ -294,98 +310,85 @@ public list[str] getConstructArgumentSignatures(str constructSignature) {
 public str extractClassSig(loc classInformationUrl){
 	node html = readHTMLFile(classInformationUrl);
 	str class_sig = "";
-	visit(html){
-		 
-		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header"){
-			visit(div_class_sig){
+	visit(html) {
+		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header") {
+			visit(div_class_sig) {
 				case text:"text"(text_content) :{ class_sig += text_content + " ";}
 				case alink:"a"(a_content) :if((alink@href ? "") != "") {
 					class_sig += alink@href + " ";
-				} 
-						
+				}
 			}
 		}
 	}
-	//to remove the last space and avoid parse errors.
 	return trim(class_sig);
-	//int i = size(class_sig);
-	//class_sig = class_sig[0..i-1];
-
 }
 
-public str getClassName(node ast){
-
-		visit(ast){
-		case "class"(_,name,_,_):{
+public str getClassName(node ast) {
+	visit(ast) {
+		case "class"(_,name,_,_): {
 			return name;
 		}
-		case "interface"(_,name,_,_):{
+		case "interface"(_,name,_,_): {
 			return name;
 		}
-		case "enum"(_,name,_,_):{
+		case "enum"(_,name,_,_): {
 			return name;
 		}
 	}
-	
 }
 
-public str getClassType(node ast){
-
-	visit(ast){
-		case "class"(_,_,_,_):{
+public str getClassType(node ast) {
+	visit(ast) {
+		case "class"(_,_,_,_): {
 			return "class";
-			
 		}
-		case "interface"(_,_,_,_):{
+		case "interface"(_,_,_,_): {
 			return "interface";
 		}
-		case "enum"(_,_,_,_):{
+		case "enum"(_,_,_,_): {
 			return "enum";
 		}
-	
 	}
-	
 }
 
-public Type getExtenders(node ast){
-
-	visit(ast){
-		case ex:"extends"(l):{
+public Type getClassSuperClass(node ast) {
+	Type superClass = \void();
+	visit(ast) {
+		case ex:"extends"(l): {
 			visit(l){
-				case "link"(l1,l2):{ 
-					return getTypeFromUrl(l2); 
+				case "link"(l1,l2): {
+					superClass = getTypeFromUrl(l2);
 				}
 			}
 		}
 	}
+	return superClass;
 }
 
-public list[Type] getImplements(node ast){
-	list[Type] impSet = [];
-	
-	visit(ast){
-		case impl:"implements"(im):{
+public list[Type] getClassInterfaces(node ast) {
+	list[Type] interfaces = [];
+	visit(ast) {
+		case impl:"implements"(im): {
 			visit(im){			
-				case "link"(i1,i2):{ 
-					impSet += getTypeFromUrl(i2);
+				case "link"(i1,i2): {
+					interfaces += getTypeFromUrl(i2);
 				}
 			}
 		}
 	}
-	return impSet;
+	return interfaces;
 }
 
-public list[str] getModifiers(node ast){
-	
-	visit(ast){
-		case "class"(v1,_,_,_):{
-			return v1;
+public list[str] getClassModifiers(node ast) {
+	visit(ast) {
+		case "class"(modifiers,_,_,_): {
+			return modifiers;
 		}
-		case "interface"(v1,_,_,_):{
-			return v1;
+		case "interface"(modifiers,_,_,_): {
+			return modifiers;
 		}
-		case "enum"(v1,_,_,_):{
-			return v1;
+		case "enum"(modifiers,_,_,_): {
+			return modifiers;
 		}
 	}
 }
