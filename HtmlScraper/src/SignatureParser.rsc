@@ -1,6 +1,7 @@
 module SignatureParser
 import ParseTree;
 import IO;
+import lang::java::\syntax::Java15;
 
 //grammar for class signatures
 layout Spaces = [\t\ \n]* !>> [\t\ \n]; 
@@ -11,8 +12,8 @@ lexical Iden = [a-zA-Z/\\.\[\]()0-9\<\>]+ !>> [a-zA-Z/\\.\[\]()0-9\<\>];
 //should all be called class because it doesn't matter for the signature cases
 syntax ClassDef
   = class: Modifiers+ "class" Iden ExtendsClause ImplementsClause
-  | class: Modifiers+ "interface" Iden ExtendsClause ImplementsClause
-  | class: Modifiers+ "enum" Iden ExtendsClause ImplementsClause
+  | interface: Modifiers+ "interface" Iden ExtendsClause ImplementsClause
+  | enum: Modifiers+ "enum" Iden ExtendsClause ImplementsClause
   ;
   
  //possible modifiers

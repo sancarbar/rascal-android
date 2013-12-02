@@ -8,14 +8,14 @@ import List;
 data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \array(Type arrayType);
 
 // Creates Java file
-public void createClassFile(str packagePath, str name, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods, Type superClass = \void(), list[Type] interfaces = []) {
+public void createClassFile(str packagePath, str classType, str name, str modifiers, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods, Type superClass, list[Type] interfaces, lrel[str name, str modifiers, Type constantType] constants, lrel[str signature, lrel[str, Type] arguments] constructors) {
 	str packageName = replaceAll(packagePath, "/", ".");
 	loc packageLoc = |project://Android/src| + packagePath;
 	if(!exists(packageLoc)) {
 		mkDirectory(packageLoc);
 	}
 	loc classLoc = packageLoc + getFileName(name,".java");
-	appendToFile(classLoc, genClass(packageName, name, methods, superClass, interfaces));
+	appendToFile(classLoc, genClass(packageName, classType, name, modifiers, methods, superClass, interfaces, constants, constructors));
 }
 
 public str getFileName(str name, str ext){
@@ -23,13 +23,19 @@ public str getFileName(str name, str ext){
 }
 
 // Helper function to generate a class
-public str genClass(str packageName, str name, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods, Type superClass, list[Type] interfaces) {
+public str genClass(str packageName, str classType, str name, str modifiers, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods, Type superClass, list[Type] interfaces, lrel[str name, str modifiers, Type constantType] constants, lrel[str signature, lrel[str, Type] arguments] constructors) {
   return
   	"package <packageName>;
   	'
-  	'<genImports(methods, superClass, interfaces)>
+  	'<genImports(methods, superClass, interfaces, constants, constructors.arguments)>
     '
-    'public class <name><genExtend(superClass)><genImplements(interfaces)> {
+    '<modifiers> <classType> <name><genExtend(superClass)><genImplements(interfaces)> {
+    '<for (constant <- constants) {>
+    	'<genConstant(constant)>
+    '<}>
+    '<for (constructor <- constructors) {>
+    	'<genConstructor(constructor.signature)>
+    '<}>
     '<for (method <- methods) {>
     	'<genMethod(method.name, method.modifiers, method.returnType, method.arguments)>
     '<}>
@@ -37,7 +43,7 @@ public str genClass(str packageName, str name, lrel[str name, str modifiers, Typ
 }
 
 // Helper function to generate the imports
-private str genImports(lrel[str name, str modifiers, Type returnType, lrel[str argName, Type argType] arguments] methods, Type superClass, list[Type] interfaces) {
+private str genImports(lrel[str name, str modifiers, Type returnType, lrel[str argName, Type argType] arguments] methods, Type superClass, list[Type] interfaces, lrel[str name, str modifiers, Type constantType] constants, list[lrel[str name, Type argType]] constructorsArgs) {
 	set[str] imports = {};
 	if(superClass is \type){
 		imports += genImport(superClass);
@@ -53,6 +59,18 @@ private str genImports(lrel[str name, str modifiers, Type returnType, lrel[str a
 			imports += genImport(argument.argType);
 		}
 	}
+	for (constant <- constants){
+		
+		if (constant.constantType is \type) {
+			imports += genImport(constant.constantType);
+		}
+	}
+	for(constructorArgs <- constructorsArgs) {
+		for (arg <- constructorArgs, arg.argType is \type) {
+			imports += genImport(arg.argType);
+		}
+	}
+	
 	return intercalate("\n", toList(imports));
 }
 
@@ -62,11 +80,15 @@ private str genImport(\type(str packageName, _)) {
 }
 
 // Helper functions to generate an extend
-private str genExtend(\type(_, str typeName)){ 
+private str genExtend(\type(_, str typeName)) {
 	return " extends <typeName>";
 }
 private str genExtend(noExtend){ 
 	return "";
+}
+
+public str genConstant(tuple[str name, str modifiers, Type constantType] constant){
+	return "\t<constant.modifiers> <constant.constantType.typeName> <constant.name>; ";
 }
 
 // Helper function to generate the implements
@@ -80,6 +102,10 @@ private str genImplements(list[Type] interfaces){
 		implementsValue = " implements " + intercalate(", ", implements);
 	}
 	return implementsValue;
+}
+
+private str genConstructor(str signature){
+	return "\t<signature> {};";
 }
 
 // Helper functions to generate a method
