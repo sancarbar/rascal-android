@@ -43,8 +43,32 @@ public void buildProject() {
 		for (class <- information["classes"]) {
 			url = class["url"];
 			methods = getMethodsOfClass(url);
+			classConstructs = getClassConstructs(url);
+			lrel[str name, str modifiers, Type constantType] parsedConstants = [];
+			lrel[str signature, lrel[str, Type] arguments] parsedConstructors = [];
+			for(constructor <- classConstructs["constructors"]){
+				str constructorSignature = getConstructSignature(constructor);
+				list[str] argumentSignatures = getConstructArgumentSignatures(constructorSignature);
+				// Get arguments of constructor
+				lrel[str, Type] arguments = [];
+				for (argumentSignature <- argumentSignatures) {
+					str argumentName = getConstructName(argumentSignature);
+					Type argumentType = getConstructType(argumentName, argumentSignature, constructor);
+					arguments += <argumentName, argumentType>;
+				}
+				parsedConstructors += <constructorSignature, arguments>;
+			}
+			println("parsedConstructors: <parsedConstructors>");
+			for(constant <- classConstructs["constants"] + classConstructs["fields"]){
+				str constantSignature = getConstructSignature(constant);
+				str constantName = getConstructName(constantSignature);
+				str constantModifiers = getConstructModifiers(constantSignature);
+				Type contantType = getConstructType(constantName, constantSignature, constant);
+				parsedConstants += <constantName, constantModifiers, contantType>;
+			}
+		
 			println("url <url>");
-
+			
 			// Get methods
 			lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] parsedMethods = [];
 			for(method <- methods) {
@@ -66,7 +90,7 @@ public void buildProject() {
 			}
 
 			//createClassFile(class["package_path"], class["name"], [], class["sig"].extends, class["sig"]["implements"]);
-			createClassFile(class["package_path"], class["name"], parsedMethods);
+			createClassFile(class["package_path"], class["name"], parsedMethods, constants = parsedConstants, constructors = parsedConstructors);
 		}
 	}
 }
@@ -222,10 +246,11 @@ private map[str, list[list[node]]] getClassConstructs(loc classUrl) {
 			}
 			switch(construct) {
 				case "Public Methods":  methods += [constructNode];
+				case "Protected Methods": methods += [constructNode];
 				case "Public Constructors": constructors += [constructNode];
+				case "Protected Constructors": constructors += [constructNode];
 				case "Constants": constants += [constructNode];
 				case "Fields": fields += [constructNode];
-				case "Protected Methods": methods += [constructNode];
 			}
 		}
 	}
