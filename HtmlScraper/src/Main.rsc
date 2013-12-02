@@ -3,8 +3,8 @@ module Main
 import IO;
 import lang::html::IO;
 import Set;
+import List;
 import util::ValueUI;
-import Location;
 import String;
 import Template;
 import ParseTree;
@@ -36,16 +36,34 @@ public void main() {
 	text(packages);
 }
 
-public void buildProject() {
+public void buildProject(int apiLevel) {
 	loc project = |http://developer.android.com/reference/packages.html|;
 	for (package_info <- getPackages(project)) {
-		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"]);
+		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"], apiLevel);
 		for (class <- information["classes"]) {
 			url = class["url"];
-			methods = getMethodsOfClass(url);
-			classConstructs = getClassConstructs(url);
-			lrel[str name, str modifiers, Type constantType] parsedConstants = [];
-			lrel[str signature, lrel[str, Type] arguments] parsedConstructors = [];
+			classConstructs = getClassConstructs(url, apiLevel);
+			println("url <url>");
+
+			// Get class information
+			str classSignature = extractClassSig(url);
+			node classAst = parseClassToAST(classSignature);
+			str classType = getClassType(classAst);
+			str className = getClassName(classAst);
+			str classModifiers = intercalate(" ", getClassModifiers(classAst));
+			Type classSuperClass = getClassSuperClass(classAst);
+			list[Type] classInterfaces = getClassInterfaces(classAst);
+
+			// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
+			if (classType == "interface") {
+				if (!isEmpty(classInterfaces)) {
+					classSuperClass = head(classInterfaces);
+					classInterfaces = [];
+				}
+			}
+
+			// Get constants and fields
+			lrel[str signature, lrel[str, Type] arguments] parsedConstructors = [];					
 			for(constructor <- classConstructs["constructors"]){
 				str constructorSignature = getConstructSignature(constructor);
 				list[str] argumentSignatures = getConstructArgumentSignatures(constructorSignature);
@@ -58,7 +76,9 @@ public void buildProject() {
 				}
 				parsedConstructors += <constructorSignature, arguments>;
 			}
-			println("parsedConstructors: <parsedConstructors>");
+
+			// Get constructors
+			lrel[str name, str modifiers, Type constantType] parsedConstants = [];
 			for(constant <- classConstructs["constants"] + classConstructs["fields"]){
 				str constantSignature = getConstructSignature(constant);
 				str constantName = getConstructName(constantSignature);
@@ -66,12 +86,10 @@ public void buildProject() {
 				Type contantType = getConstructType(constantName, constantSignature, constant);
 				parsedConstants += <constantName, constantModifiers, contantType>;
 			}
-		
-			println("url <url>");
-			
+
 			// Get methods
-			lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] parsedMethods = [];
-			for(method <- methods) {
+			lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] classMethods = [];
+			for(method <- classConstructs["methods"]) {
 				str methodSignature = getConstructSignature(method);
 				str methodName = getConstructName(methodSignature);
 				str methodModifiers = getConstructModifiers(methodSignature);
@@ -86,11 +104,10 @@ public void buildProject() {
 					arguments += <argumentName, argumentType>;
 				}
 
-				parsedMethods += <methodName, methodModifiers, methodReturnType, arguments>;
+				classMethods += <methodName, methodModifiers, methodReturnType, arguments>;
 			}
 
-			//createClassFile(class["package_path"], class["name"], [], class["sig"].extends, class["sig"]["implements"]);
-			createClassFile(class["package_path"], class["name"], parsedMethods, constants = parsedConstants, constructors = parsedConstructors);
+			createClassFile(class["package_path"], classType, className, classModifiers, classMethods, classSuperClass, classInterfaces, parsedConstants, parsedConstructors);
 		}
 	}
 }
@@ -126,7 +143,7 @@ public set[map[str,value]] getPackages(loc packageSummaryUrl) {
 	return packageSet;
 }
 
-public map[str, set[map[str, value]]] getPackageInformation(loc packageInformationUrl) {
+public map[str, set[map[str, value]]] getPackageInformation(loc packageInformationUrl, value api) {
 	node html = readHTMLFile(packageInformationUrl);
 	
 	set[str] urlSet = {};
@@ -160,24 +177,30 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 									visit(a_content) {
 										case atext:"text"(text_content): { 
 											map[str,value] package_info = (
-												"sig" : "TODO", //extractClassSig(|http://developer.android.com<alink@href>|),
+												"sig" : extractClassSig(|http://developer.android.com<alink@href>|),
 												"name":text_content,
 												"url":|http://developer.android.com<alink@href>|,
-												"package_path": substring(alink@href, 11, findLast(alink@href, "/"))
+												"package_path": substring(alink@href, 11, findLast(alink@href, "/")),
+												"api-level": getClassAPI(|http://developer.android.com<alink@href>|)
 												//"information":getClassInformation(|http://developer.android.com<alink@href>|)
 											);
 											// Group by class type.
-											switch (entry_type)
-											{
-												case "Classes": {
-													classSet += {package_info};
-													
-													//getClassInformation(|http://developer.android.com<package_info["url"]>|);
+											value apiLVL = package_info["api-level"];
+											if(apiLVL > api){
+													classSet += {};
 												}
-												case "Interfaces": interfaceSet += {package_info};
-												case "Exceptions": exceptionSet += {package_info};
-												case "Enums": enumsSet += {package_info};
-												case "Errors": errorSet += {package_info};
+											else{
+												switch (entry_type)
+												{
+													case "Classes": {
+														classSet += {package_info};
+														
+													}
+													case "Interfaces": interfaceSet += {package_info};
+													case "Exceptions": exceptionSet += {package_info};
+													case "Enums": enumsSet += {package_info};
+													case "Errors": errorSet += {package_info};
+												}
 											}
 										}
 									}
@@ -217,7 +240,24 @@ public list[list[node]] getFieldsOfClass(loc classUrl) {
 	return getClassConstructs(classUrl)["fields"];
 }
 
-private map[str, list[list[node]]] getClassConstructs(loc classUrl) {
+public int getClassAPI(loc classURL)
+{ 
+node ast = readHTMLFile(classURL);
+	visit(ast){
+		case div:"div"(class_API_container):if((div@class ? "") == "api-level"){
+			visit(class_API_container) {
+				case text:"text"(apiLevelContent):{
+					apiLevel = apiLevelContent;
+					if(/.*\s<lvl:[0-9]+>/ := apiLevel){
+					return toInt(lvl);
+					}
+				}						
+			}
+		}
+	}
+}
+
+public map[str, list[list[node]]] getClassConstructs(loc classUrl, int api) {
 	node html = readHTMLFile(classUrl);
 	list[list[node]] methods = [];
 	list[list[node]] constants = [];
@@ -234,23 +274,37 @@ private map[str, list[list[node]]] getClassConstructs(loc classUrl) {
 		case div:"div"(divMethod): if(/jd-details / := (div@class ? "")) {
 			list[node] constructNode;
 			str apiLevel = "";
+			int apiLvl = 0;
 			visit(divMethod) {
 				case header:"h4"(h4Content): if ((header@class ? "" ) == "jd-details-title") {
 					constructNode = h4Content;
 				}
 				case divApi:"div"(divContent): if((divApi@class ? "") == "api-level") {
 					visit(divContent) {
-						case text:"text"(apiLevelContent): apiLevel = apiLevelContent;
+						case text:"text"(apiLevelContent): 
+						{
+							apiLevel = apiLevelContent;
+							if(/.*\s<lvl:[0-9]+>/ := apiLevel){
+							apiLvl = toInt(lvl);
+							}
+							
+						}						
 					}
 				}
 			}
-			switch(construct) {
-				case "Public Methods":  methods += [constructNode];
-				case "Protected Methods": methods += [constructNode];
-				case "Public Constructors": constructors += [constructNode];
-				case "Protected Constructors": constructors += [constructNode];
-				case "Constants": constants += [constructNode];
-				case "Fields": fields += [constructNode];
+			//do add the methods with the apiLevels that are higher than the version currently bui;d
+			if(apiLvl > api) {
+				methods += [];
+			}
+			else {
+				switch(construct) {
+					case "Public Methods":  methods += [constructNode];
+					case "Protected Methods": methods += [constructNode];
+					case "Public Constructors": constructors += [constructNode];
+					case "Protected Constructors": constructors += [constructNode];
+					case "Constants": constants += [constructNode];
+					case "Fields": fields += [constructNode];
+				}
 			}
 		}
 	}
@@ -317,58 +371,90 @@ public list[str] getConstructArgumentSignatures(str constructSignature) {
 	}
 }
 
-public map[str,value] extractClassSig(loc classInformationUrl){
+public str extractClassSig(loc classInformationUrl){
 	node html = readHTMLFile(classInformationUrl);
 	str class_sig = "";
 	visit(html){
-		 
-		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header"){
-			visit(div_class_sig){
+		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header") {
+			visit(div_class_sig) {
 				case text:"text"(text_content) :{ class_sig += text_content + " ";}
 				case alink:"a"(a_content) :if((alink@href ? "") != "") {
 					class_sig += alink@href + " ";
-				} 
-						
+				}
 			}
-			//println("class + <class_sig>");
 		}
 	}
-	//to remove the last space and avoid parse errors.
-	int i = size(class_sig);
-	class_sig = class_sig[0..i-1];
+	return trim(class_sig);
+}
 
-	map[str,value] classSignature = ();
-	list[map[str,value]] impSet = [];
-	node class_AST = parseClassToAST(class_sig);
-	println(class_AST);
-	visit(class_AST){
-	//v1 = modifiers, v2 = name, v3= list of extenders, v4 = list of implementers
-		case "class"(v1,v2,v3,v4):{
-			classSignature["state"] = v1; 
-			classSignature["name"] = v2; 
-			visit(v3){
-				case ex:"extends"(l):{
-					visit(l){
-						case "link"(l1,l2):{ 
-							classSignature["extends"] =  ("url":l2, "type":getTypeFromUrl(l2));
-						}
-					}
-				}
-			}
-			visit(v4){
-				case impl:"implements"(im):{
-					visit(im){			
-						case "link"(i1,i2):{ 
-						    //map(implements: {()
-							impSet += ("url":i2, "type":getTypeFromUrl(i2));
-						}
-					}
-					classSignature["implements"] = impSet;
-				}
-			}
-		} 
+public str getClassName(node ast) {
+	visit(ast) {
+		case "class"(_,name,_,_): {
+			return name;
+		}
+		case "interface"(_,name,_,_): {
+			return name;
+		}
+		case "enum"(_,name,_,_): {
+			return name;
+		}
 	}
-	return classSignature;
+}
+
+public str getClassType(node ast) {
+	visit(ast) {
+		case "class"(_,_,_,_): {
+			return "class";
+		}
+		case "interface"(_,_,_,_): {
+			return "interface";
+		}
+		case "enum"(_,_,_,_): {
+			return "enum";
+		}
+	}
+}
+
+public Type getClassSuperClass(node ast) {
+	Type superClass = \void();
+	visit(ast) {
+		case ex:"extends"(l): {
+			visit(l){
+				case "link"(l1,l2): {
+					superClass = getTypeFromUrl(l2);
+				}
+			}
+		}
+	}
+	return superClass;
+}
+
+public list[Type] getClassInterfaces(node ast) {
+	list[Type] interfaces = [];
+	visit(ast) {
+		case impl:"implements"(im): {
+			visit(im){			
+				case "link"(i1,i2): {
+					interfaces += getTypeFromUrl(i2);
+				}
+			}
+		}
+	}
+	return interfaces;
+}
+
+public list[str] getClassModifiers(node ast) {
+	visit(ast) {
+		case "class"(modifiers,_,_,_): {
+			return modifiers;
+		}
+		case "interface"(modifiers,_,_,_): {
+			return modifiers;
+		}
+		case "enum"(modifiers,_,_,_): {
+			return modifiers;
+		}
+	}
 }
 
 private Type getTypeFromString(str typeName) {
