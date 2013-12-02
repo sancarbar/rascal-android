@@ -87,8 +87,8 @@ private str genExtend(noExtend){
 	return "";
 }
 
-public str genConstant(tuple[str name, str modifiers, Type constantType] constant){
-	return "\t<constant.modifiers> <constant.constantType.typeName> <constant.name>; ";
+public str genConstant(tuple[str name, str modifiers, Type constantType] constant) {
+	return "\t<constant.modifiers> <printType(constant.constantType)> <constant.name> = <getDefaultTypeValue(constant.constantType)>; ";
 }
 
 // Helper function to generate the implements
@@ -136,21 +136,28 @@ private str printType(Type aType) {
 }
 
 private str getDefaultReturnTypeValue(Type returnType) {
-	switch (returnType) {
-		case \void(): return "";
+	if(returnType is \void)
+		return "";
+	else
+		return "return <getDefaultTypeValue(returnType)>;";
+}
+
+private str getDefaultTypeValue(Type constructType) {
+	switch (constructType) {
 		case \primitive(str typeName): {
-			switch (returnType.typeName) {
-				case /char/: return "return \'\u0000\';";
-				case /boolean/: return "return false;";
-				case /String/: return "return \"\";";
-				case /Object/: return "return null;";
-				default: return "return 0;";
+			switch (constructType.typeName) {
+				case /char/: return "\'\u0000\'";
+				case /boolean/: return "false";
+				case /String/: return "\"\"";
+				case /Object/: return "null";
+				default: return "0";
 			}
 		}
-		case \type(str packageName, str typeName): return "return null;";
-		case \array(Type arrayType): return "return null;";
+		case \type(str packageName, str typeName): return "null";
+		case \array(Type arrayType): return "null";
 	}
 }
+
 
 //Examples:
 //createClassFile("com/test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.lang.String", "String")>]>, <"isCool", \primitive("boolean"), []>]);

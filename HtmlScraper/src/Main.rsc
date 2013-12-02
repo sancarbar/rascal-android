@@ -41,6 +41,7 @@ public void buildProject(int apiLevel) {
 	for (package_info <- getPackages(project)) {
 		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"], apiLevel);
 		for (class <- information["classes"]) {
+			//url = |http://developer.android.com/reference/android/database/CursorJoiner.Result.html|; //class["url"];
 			url = class["url"];
 			classConstructs = getClassConstructs(url, apiLevel);
 			println("url <url>");
@@ -263,6 +264,7 @@ public map[str, list[list[node]]] getClassConstructs(loc classUrl, int api) {
 	list[list[node]] constants = [];
 	list[list[node]] fields = [];
 	list[list[node]] constructors = [];
+	list[list[node]] innerClasses = [];
 	
 	str construct;
 	visit(html) {
