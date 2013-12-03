@@ -57,9 +57,11 @@ public void buildClass(loc url, str packagePath, int api) {
 		createClassFile(packagePath, classInfo.val);
 }
 
-private Maybe[Class] getClassInfo(loc url, str packagePath, int api){
+private Maybe[Class] getClassInfo(loc url, str packagePath, int api) {
 	map[str, list[list[node]]] classConstructs = getClassConstructs(url, api);
-	str classSignature = extractClassSig(url);
+	node html = readHTMLFile(url);
+	str classSignature = extractClassSig(html);
+	bool isDeprecated = isClassDeprecated(html);
 	node classAst = parseClassToAST(classSignature);
 	str classType = getClassType(classAst);
 	str name = getClassName(classAst);
@@ -81,7 +83,7 @@ private Maybe[Class] getClassInfo(loc url, str packagePath, int api){
 				interfaces = [];
 			}
 		}
-		return just(class(packagePath, classType, name, modifiers, superClass, interfaces, constantsAndFields, constructors, methods));
+		return just(class(packagePath, classType, name, modifiers, superClass, interfaces, isDeprecated, constantsAndFields, constructors, methods));
 	}
 }
 
@@ -113,7 +115,7 @@ public list[ConstantField] getConstantsAndFields(list[list[node]] methodsAndFiel
 		str constantName = getConstructName(constantSignature);
 		str constantModifiers = getConstructModifiers(constantSignature);
 		Type contantType = getConstructType(constantName, constantSignature, constant);
-		constantsAndFields += ConstantField(constantName, constantModifiers, contantType);
+		constantsAndFields += constantField(constantName, constantModifiers, contantType);
 	}
 	return constantsAndFields;
 }
@@ -196,7 +198,7 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 									visit(a_content) {
 										case atext:"text"(text_content): { 
 											map[str,value] package_info = (
-												"sig" : extractClassSig(|http://developer.android.com<alink@href>|),
+												"sig" : extractClassSig(html),
 												"name":text_content,
 												"url":|http://developer.android.com<alink@href>|,
 												"package_path": substring(alink@href, 11, findLast(alink@href, "/")),
@@ -247,7 +249,6 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 public list[loc] getNestedClasses(loc classUrl){
 
 	node ast = readHTMLFile(classUrl);
-	//table tags are not properly closed on website, therefore match on tableheader
 	str entry_type = "";
 	list[loc] nclasses = [];
 	visit(ast){
@@ -258,6 +259,7 @@ public list[loc] getNestedClasses(loc classUrl){
 					visit(content){
 						case "text"(text_con):{
 							entry_type = text_con;
+							//table tags are not properly closed on website, therefore match on tableheader Nested Classes
 						}
 					}
 				}
@@ -402,13 +404,13 @@ public list[str] getConstructArgumentSignatures(str constructSignature) {
 	}
 }
 
-public str extractClassSig(loc classInformationUrl){
-	node html = readHTMLFile(classInformationUrl);
+public str extractClassSig(node html) {
 	str class_sig = "";
-	visit(html){
+	visit(html) {
 		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header") {
+			//text(div_class_sig);
 			visit(div_class_sig) {
-				case text:"text"(text_content) :{ class_sig += text_content + " ";}
+				case text:"text"(text_content) :{ class_sig += text_content + " "; }//println(class_sig);}
 				case alink:"a"(a_content) :if((alink@href ? "") != "") {
 					class_sig += alink@href + " ";
 				}
@@ -418,15 +420,26 @@ public str extractClassSig(loc classInformationUrl){
 	return trim(class_sig);
 }
 
+public bool isClassDeprecated(node html) {
+	visit(html) {
+		case divC:"div"(divClassContent): if((divC@id ? "") == "jd-content") {
+			visit(divClassContent) {
+				case divD:"div"(divDescription): if((divD@class ? "") == "jd-descr") {
+					visit(divClassContent) {
+						case pC:"p"(pContent): if((pC@class ? "") == "caution") {
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+	return false;
+}
+
 public str getClassName(node ast) {
 	visit(ast) {
-		case "class"(_,name,_,_): {
-			return name;
-		}
-		case "interface"(_,name,_,_): {
-			return name;
-		}
-		case "enum"(_,name,_,_): {
+		case "type"(_,_,name,_,_): {
 			return name;
 		}
 	}
@@ -434,14 +447,8 @@ public str getClassName(node ast) {
 
 public str getClassType(node ast) {
 	visit(ast) {
-		case "class"(_,_,_,_): {
-			return "class";
-		}
-		case "interface"(_,_,_,_): {
-			return "interface";
-		}
-		case "enum"(_,_,_,_): {
-			return "enum";
+		case "type"(_,typ,_,_,_): {
+			return typ;
 		}
 	}
 }
@@ -451,8 +458,22 @@ public Type getClassSuperClass(node ast) {
 	visit(ast) {
 		case ex:"extends"(l): {
 			visit(l){
-				case "link"(l1,l2): {
+				case "link"(l1,l2,l3): {
+					//println(l);
+					//println("LAYER 1 <l1>  <l2> <l3>");
 					superClass = getTypeFromUrl(l2);
+//					visit(l3){
+//						case "extends"(inpt):{
+//							visit(inpt){
+//								case "link"(e1,e2,e3):{
+//									println("LAYER 2 <e1>  <e2> <e3>");
+//								}
+//							}
+//						}//Enum link < E2 link2 <E>> 
+////"public static final enum Bitmap.Config extends  Enum /reference/java/lang/Enum.html \<E Enum /reference/java/lang/Enum.html \<E\>\>"
+////extends hoofd:type, E: type>\>
+//				//type (enum, enumref) [type(enum, enumref) :  <extends >		
+//					}
 				}
 			}
 		}
@@ -465,7 +486,7 @@ public list[Type] getClassInterfaces(node ast) {
 	visit(ast) {
 		case impl:"implements"(im): {
 			visit(im){			
-				case "link"(i1,i2): {
+				case "link"(i1,i2,i3): {
 					interfaces += getTypeFromUrl(i2);
 				}
 			}
@@ -476,13 +497,7 @@ public list[Type] getClassInterfaces(node ast) {
 
 public list[str] getClassModifiers(node ast) {
 	visit(ast) {
-		case "class"(modifiers,_,_,_): {
-			return modifiers;
-		}
-		case "interface"(modifiers,_,_,_): {
-			return modifiers;
-		}
-		case "enum"(modifiers,_,_,_): {
+		case "type"(modifiers,_,_,_,_): {
 			return modifiers;
 		}
 	}

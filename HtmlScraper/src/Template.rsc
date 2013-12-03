@@ -6,9 +6,9 @@ import Set;
 import List;
 
 data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \array(Type arrayType);
-data Class = class(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, list[ConstantField] constantsAndFields, list[Constructor] constructors,  list[Method] methods);
+data Class = class(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, bool isDeprecated,list[ConstantField] constantsAndFields, list[Constructor] constructors,  list[Method] methods);
 data Method = method(str name, str modifiers, Type returnType, lrel[str argName, Type argType] arguments);
-data ConstantField = constantField(str name, str modifiers, Type cType);
+data ConstantField = constantField(str name, str modifiers, Type constantType);
 data Constructor = constructor(str signature, lrel[str argName, Type argType] arguments);
 
 // Creates Java file
@@ -33,6 +33,7 @@ public str genClass(str packageName, classInfo) {
   	'
   	'<genImports(classInfo.methods, classInfo.superClass, classInfo.interfaces, classInfo.constantsAndFields, classInfo.constructors)>
     '
+	'<if (classInfo.isDeprecated) {>@Deprecated<}>
     '<classInfo.modifiers> <classInfo.classType> <classInfo.name><genExtend(classInfo.superClass)><genImplements(classInfo.interfaces)> {
     '<for (constant <- classInfo.constantsAndFields) {>
     	'<genConstant(constant)>
@@ -90,7 +91,7 @@ private str genExtend(noExtend){
 	return "";
 }
 
-public str genConstant(tuple[str name, str modifiers, Type constantType] constant) {
+public str genConstant(ConstantField constant) {
 	return "\t<constant.modifiers><printType(constant.constantType)> <constant.name> = <getDefaultTypeValue(constant.constantType)>; ";
 }
 
