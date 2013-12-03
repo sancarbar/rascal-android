@@ -11,23 +11,21 @@ import ParseTree;
 import SignatureParser;
 
 //annotations
-
 anno str node@id;
 anno str node@href;
 anno str node@class;
 
 // |http://developer.android.com/reference/packages.html|
-
-public void main(value api) {
+public void main(int apiLevel) {
 	loc project = |http://developer.android.com/reference/packages.html|;
 	
 	set[value] packages = {};
 	
-	for (package_info <- getPackages(project)) {
+	for (package <- getPackages(project)) {
 		// Retrieve detailed package information.
-		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"]);
+		map[str,set[map[str,value]]] information = getPackageInformation(package, apiLevel);
 		// Add detailed to package information to the package information we already have.
-		map[str, value] package_information = package_info + ("information":information);
+		map[str, value] package_information = ("package": information);
 		// Add full package information to set.
 		packages += {package_information};
 		text(package_information);		
@@ -38,8 +36,8 @@ public void main(value api) {
 
 public void buildProject(int apiLevel) {
 	loc project = |http://developer.android.com/reference/packages.html|;
-	for (package_info <- getPackages(project)) {
-		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"], apiLevel);
+	for (package <- getPackages(project)) {
+		map[str,set[map[str,value]]] information = getPackageInformation(package, apiLevel);
 		for (class <- information["classes"]) {
 			url = class["url"];
 			packagePath = class["package_path"];
@@ -132,35 +130,23 @@ public lrel[str, str, Type, lrel[str, Type]] getMethods(list[list[node]] methodN
 	return methods;
 }
 
-public set[map[str,value]] getPackages(loc packageSummaryUrl) {
-	// Read html file as Node.
+public set[loc] getPackages(loc packageSummaryUrl) {
 	node html = readHTMLFile(packageSummaryUrl);
-	
-	set[map[str,value]] packageSet = {};
+	set[loc] packages = {};
 	
 	// Get parent div with list of anchors.
 	visit(html) {
-		case parent:"div"(ulist): if((parent@id ? "") == "packages-nav") {
+		case parent:"div"(ulList): if((parent@id ? "") == "packages-nav") {
 			// Get anchors.
-			visit(ulist) {
-				case alink:"a"(a_content): if((alink@href ? "") != "") {
-					// Get Names
-					visit(a_content) {
-						case atext:"text"(text_content): { 
-							map[str,value] package_info = (
-								"package":text_content,
-								"url":|http://developer.android.com<alink@href>|
-							);
-							// Add anchor to set.
-							packageSet += {package_info};
-						}
-					}		
+			visit(ulList) {
+				case alink:"a"(aContent): if((alink@href ? "") != "") {
+					packages += |http://developer.android.com<alink@href>|;
 				}
 			}
 		}
 	}
-	
-	return packageSet;
+
+	return packages;
 }
 
 public map[str, set[map[str, value]]] getPackageInformation(loc packageInformationUrl, value api) {
