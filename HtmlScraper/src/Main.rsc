@@ -251,8 +251,8 @@ public list[loc] getNestedClasses(loc classUrl){
 			    case tdlink:"td"(td_content): if((tdlink@class ? "") == "jd-linkcol"){
 			    	visit(td_content){
 			    		case alink:"a"(a_content): if((alink@href ? "") != ""){
-									switch(entry_type){
-									case "Nested Classes": nclasses += |http://developer.android.com<alink@href>|;
+							switch(entry_type){
+							case "Nested Classes": nclasses += |http://developer.android.com<alink@href>|;
 							}
 						}
 					}
@@ -277,6 +277,7 @@ public int getClassAPI(loc classURL) {
 			}
 		}
 	}
+	return 1; // if there is no apilevel in the sourcecode it will be considered as lvl 1
 }
 
 public map[str, list[list[node]]] getClassConstructs(loc classUrl, value api) {
