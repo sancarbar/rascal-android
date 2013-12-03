@@ -196,7 +196,10 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 									visit(a_content) {
 										case atext:"text"(text_content): { 
 											map[str,value] package_info = (
+
 												"sig" : extractClassSig(html),
+												//sure it shouldn't be the one below? because the html does not contain the link to the class?
+												//"sig" : extractClassSig(readHTMLFile(|http://developer.android.com<alink@href>|)),
 												"name":text_content,
 												"url":|http://developer.android.com<alink@href>|,
 												"package_path": substring(alink@href, 11, findLast(alink@href, "/")),
