@@ -9,6 +9,8 @@ import String;
 import Template;
 import ParseTree;
 import SignatureParser;
+import util::Maybe;
+
 
 //annotations
 anno str node@id;
@@ -50,85 +52,92 @@ public void buildProject(int apiLevel) {
 public void buildClass(loc url, str packagePath, int api) {
 
 	// Create class file
-	createClassFile(packagePath, getClassInfo(url, packagePath, api));
+	classInfo = getClassInfo(url, packagePath, api);
+	if(classInfo is just)
+		createClassFile(packagePath, classInfo.val);
 }
 
-private tuple[str classType, str name, str modifiers, Type superClass, list[Type] interfaces, lrel[str, str, Type] constantsAndFields, lrel[str, lrel[str, Type]] constructors, lrel[str, str, Type, lrel[str, Type]] methods] getClassInfo(loc url, str packagePath, int api){
+private Maybe[Class] getClassInfo(loc url, str packagePath, int api){
 	map[str, list[list[node]]] classConstructs = getClassConstructs(url, api);
 	str classSignature = extractClassSig(url);
 	node classAst = parseClassToAST(classSignature);
 	str classType = getClassType(classAst);
 	str name = getClassName(classAst);
-	str modifiers = intercalate(" ", getClassModifiers(classAst));
-	Type superClass = getClassSuperClass(classAst);
-	list[Type] interfaces = getClassInterfaces(classAst);
-	lrel[str, lrel[str, Type]] constructors = getConstructors(classConstructs["constructors"]);
-	lrel[str, str, Type] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
-	lrel[str, str, Type, lrel[str, Type]] methods = getMethods(classConstructs["methods"]);
-
-	// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
-	if (classType == "interface") {
-		if (!isEmpty(interfaces)) {
-			superClass = head(interfaces);
-			interfaces = [];
+	//check for innerclasses
+	if(contains(name, ".")){
+		return nothing();
+	}else{
+		str modifiers = intercalate(" ", getClassModifiers(classAst));
+		Type superClass = getClassSuperClass(classAst);
+		list[Type] interfaces = getClassInterfaces(classAst);
+		list[Constructor] constructors = getConstructors(classConstructs["constructors"]);
+		list[ConstantField] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
+		list[Method] methods = getMethods(classConstructs["methods"]);
+	
+		// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
+		if (classType == "interface") {
+			if (!isEmpty(interfaces)) {
+				superClass = head(interfaces);
+				interfaces = [];
+			}
 		}
+		return just(class(packagePath, classType, name, modifiers, superClass, interfaces, constantsAndFields, constructors, methods));
 	}
-	return <classType, name, modifiers, superClass, interfaces, constantsAndFields, constructors, methods>;
 }
 
 // Parses the constructors and returns them in the needed type for creating the templates
-public lrel[str, lrel[str, Type]] getConstructors(list[list[node]] constructorNodes) {
-	lrel[str, lrel[str, Type]] constructors = [];
-	// Get constructors
-	for(constructor <- constructorNodes){
-		str constructorSignature = getConstructSignature(constructor);
+public list[Constructor] getConstructors(list[list[node]] constructorNodes) {
+	list[Constructor] constructors = [];
+	// Get constructors  str, lrel[str, Type]
+	for(constructorNode <- constructorNodes){
+		str constructorSignature = getConstructSignature(constructorNode);
 		list[str] argumentSignatures = getConstructArgumentSignatures(constructorSignature);
 		// Get arguments of constructor
 		lrel[str, Type] arguments = [];
 		for (argumentSignature <- argumentSignatures) {
 			str argumentName = getConstructName(argumentSignature);
-			Type argumentType = getConstructType(argumentName, argumentSignature, constructor);
+			Type argumentType = getConstructType(argumentName, argumentSignature, constructorNode);
 			arguments += <argumentName, argumentType>;
 		}
-		constructors += <constructorSignature, arguments>;
+		constructors += constructor(constructorSignature, arguments);
 	}
 	return constructors;
 }
 
 // Parses the constants and fields and returns them in the needed type for creating the templates
-public lrel[str, str, Type] getConstantsAndFields(list[list[node]] methodsAndFieldsNodes) {
-	lrel[str, str, Type] constantsAndFields = [];
+public list[ConstantField] getConstantsAndFields(list[list[node]] methodsAndFieldsNodes) {
+	list[ConstantField] constantsAndFields = [];
 	// Get constants and fields
 	for(constant <- methodsAndFieldsNodes){
 		str constantSignature = getConstructSignature(constant);
 		str constantName = getConstructName(constantSignature);
 		str constantModifiers = getConstructModifiers(constantSignature);
 		Type contantType = getConstructType(constantName, constantSignature, constant);
-		constantsAndFields += <constantName, constantModifiers, contantType>;
+		constantsAndFields += ConstantField(constantName, constantModifiers, contantType);
 	}
 	return constantsAndFields;
 }
 
 // Parses the methods and returns them in the needed type for creating the templates
-public lrel[str, str, Type, lrel[str, Type]] getMethods(list[list[node]] methodNodes) {
-	lrel[str, str, Type, lrel[str, Type]] methods = [];
+public list[Method] getMethods(list[list[node]] methodNodes) {
+	list[Method] methods = [];
 	// Get methods
-	for(method <- methodNodes) {
-		str methodSignature = getConstructSignature(method);
+	for(methodNode <- methodNodes) {
+		str methodSignature = getConstructSignature(methodNode);
 		str methodName = getConstructName(methodSignature);
 		str methodModifiers = getConstructModifiers(methodSignature);
-		Type methodReturnType = getConstructType(methodName, methodSignature, method);
+		Type methodReturnType = getConstructType(methodName, methodSignature, methodNode);
 		list[str] argumentSignatures = getConstructArgumentSignatures(methodSignature);
 
 		// Get arguments of method
 		lrel[str, Type] arguments = [];
 		for (argumentSignature <- argumentSignatures) {
 			str argumentName = getConstructName(argumentSignature);
-			Type argumentType = getConstructType(argumentName, argumentSignature, method);
+			Type argumentType = getConstructType(argumentName, argumentSignature, methodNode);
 			arguments += <argumentName, argumentType>;
 		}
 
-		methods += <methodName, methodModifiers, methodReturnType, arguments>;
+		methods += method(methodName, methodModifiers, methodReturnType, arguments);
 	}
 	return methods;
 }
@@ -151,6 +160,7 @@ public set[loc] getPackages(loc packageSummaryUrl) {
 
 	return packages;
 }
+
 
 public map[str, set[map[str, value]]] getPackageInformation(loc packageInformationUrl, value api) {
 	node html = readHTMLFile(packageInformationUrl);

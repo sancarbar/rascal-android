@@ -6,16 +6,20 @@ import Set;
 import List;
 
 data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \array(Type arrayType);
+data Class = class(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, list[ConstantField] constantsAndFields, list[Constructor] constructors,  list[Method] methods);
+data Method = method(str name, str modifiers, Type returnType, lrel[str argName, Type argType] arguments);
+data ConstantField = constantField(str name, str modifiers, Type cType);
+data Constructor = constructor(str signature, lrel[str argName, Type argType] arguments);
 
 // Creates Java file
-public void createClassFile(str packagePath, tuple[str classType, str name, str modifiers, Type superClass, list[Type] interfaces, lrel[str, str, Type] constantsAndFields, lrel[str, lrel[str, Type]] constructors, lrel[str, str, Type, lrel[str, Type]] methods] classInfo) {
+public void createClassFile(str packagePath, Class classInfo) {
 	str packageName = replaceAll(packagePath, "/", ".");
 	loc packageLoc = |project://Android/src| + packagePath;
 	if(!exists(packageLoc)) {
 		mkDirectory(packageLoc);
 	}
 	loc classLoc = packageLoc + getFileName(classInfo.name,".java");
-	appendToFile(classLoc, genClass(packageName, classInfo.classType, classInfo.name, classInfo.modifiers, classInfo.superClass, classInfo.interfaces, classInfo.constantsAndFields, classInfo.constructors, classInfo.methods));
+	appendToFile(classLoc, genClass(packageName, classInfo));
 }
 
 public str getFileName(str name, str ext){
@@ -23,27 +27,27 @@ public str getFileName(str name, str ext){
 }
 
 // Helper function to generate a class
-public str genClass(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, lrel[str name, str modifiers, Type constantType] constants, lrel[str signature, lrel[str, Type] arguments] constructors, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods) {
+public str genClass(str packageName, classInfo) {
   return
   	"package <packageName>;
   	'
-  	'<genImports(methods, superClass, interfaces, constants, constructors.arguments)>
+  	'<genImports(classInfo.methods, classInfo.superClass, classInfo.interfaces, classInfo.constantsAndFields, classInfo.constructors)>
     '
-    '<modifiers> <classType> <name><genExtend(superClass)><genImplements(interfaces)> {
-    '<for (constant <- constants) {>
+    '<classInfo.modifiers> <classInfo.classType> <classInfo.name><genExtend(classInfo.superClass)><genImplements(classInfo.interfaces)> {
+    '<for (constant <- classInfo.constantsAndFields) {>
     	'<genConstant(constant)>
     '<}>
-    '<for (constructor <- constructors) {>
+    '<for (constructor <- classInfo.constructors) {>
     	'<genConstructor(constructor.signature)>
     '<}>
-    '<for (method <- methods) {>
+    '<for (method <- classInfo.methods) {>
     	'<genMethod(method.name, method.modifiers, method.returnType, method.arguments)>
     '<}>
     '}";
 }
 
 // Helper function to generate the imports
-private str genImports(lrel[str name, str modifiers, Type returnType, lrel[str argName, Type argType] arguments] methods, Type superClass, list[Type] interfaces, lrel[str name, str modifiers, Type constantType] constants, list[lrel[str name, Type argType]] constructorsArgs) {
+private str genImports(list[Method] methods, Type superClass, list[Type] interfaces, list[ConstantField] constants, list[Constructor] constructors) {
 	set[str] imports = {};
 	if(superClass is \type){
 		imports += genImport(superClass);
@@ -64,8 +68,8 @@ private str genImports(lrel[str name, str modifiers, Type returnType, lrel[str a
 			imports += genImport(constant.constantType);
 		}
 	}
-	for(constructorArgs <- constructorsArgs) {
-		for (arg <- constructorArgs, arg.argType is \type) {
+	for(constructor <- constructors) {
+		for (arg <- constructor.arguments, arg.argType is \type) {
 			imports += genImport(arg.argType);
 		}
 	}
