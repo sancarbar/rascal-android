@@ -59,8 +59,7 @@ private str genImports(lrel[str name, str modifiers, Type returnType, lrel[str a
 			imports += genImport(argument.argType);
 		}
 	}
-	for (constant <- constants){
-		
+	for (constant <- constants) {
 		if (constant.constantType is \type) {
 			imports += genImport(constant.constantType);
 		}
@@ -88,7 +87,7 @@ private str genExtend(noExtend){
 }
 
 public str genConstant(tuple[str name, str modifiers, Type constantType] constant) {
-	return "\t<constant.modifiers> <printType(constant.constantType)> <constant.name> = <getDefaultTypeValue(constant.constantType)>; ";
+	return "\t<constant.modifiers><printType(constant.constantType)> <constant.name> = <getDefaultTypeValue(constant.constantType)>; ";
 }
 
 // Helper function to generate the implements
@@ -104,7 +103,7 @@ private str genImplements(list[Type] interfaces){
 	return implementsValue;
 }
 
-private str genConstructor(str signature){
+private str genConstructor(str signature) {
 	return "\t<signature> {};";
 }
 

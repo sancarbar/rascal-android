@@ -280,7 +280,7 @@ public int getClassAPI(loc classURL) {
 	return 1; // if there is no apilevel in the sourcecode it will be considered as lvl 1
 }
 
-public map[str, list[list[node]]] getClassConstructs(loc classUrl, value api) {
+public map[str, list[list[node]]] getClassConstructs(loc classUrl, int apiLevel) {
 	node html = readHTMLFile(classUrl);
 	list[list[node]] methods = [];
 	list[list[node]] constants = [];
@@ -297,30 +297,24 @@ public map[str, list[list[node]]] getClassConstructs(loc classUrl, value api) {
 		}
 		case div:"div"(divMethod): if(/jd-details / := (div@class ? "")) {
 			list[node] constructNode;
-			str apiLevel = "";
-			value apiLvl = 0;
+			int constructApiLevel = 0;
 			visit(divMethod) {
 				case header:"h4"(h4Content): if ((header@class ? "" ) == "jd-details-title") {
 					constructNode = h4Content;
 				}
 				case divApi:"div"(divContent): if((divApi@class ? "") == "api-level") {
 					visit(divContent) {
-						case text:"text"(apiLevelContent): 
-						{
-							apiLevel = apiLevelContent;
-							if(/.*\s<lvl:[0-9]+>/ := apiLevel){
-							apiLvl = lvl;
+						case text:"text"(apiLevelContent): {
+							if(/.*\s<lvl:[0-9]+>/ := apiLevelContent) {
+								constructApiLevel = toInt(lvl);
 							}
 							
 						}						
 					}
 				}
 			}
-			//do add the methods with the apiLevels that are higher than the version currently bui;d
-			if(apiLvl > api) {
-				methods += [];
-			}
-			else {
+			//do add the methods with the apiLevels that are higher than the version currently bui;l
+			if(constructApiLevel <= apiLevel) {
 				switch(construct) {
 					case "Public Methods":  methods += [constructNode];
 					case "Protected Methods": methods += [constructNode];
