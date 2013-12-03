@@ -75,7 +75,9 @@ private tuple[str classType, str name, str modifiers, Type superClass, list[Type
 			interfaces = [];
 		}
 	}
+
 	return <classType, name, modifiers, superClass, interfaces, isDeprecated, constantsAndFields, constructors, methods>;
+	
 }
 
 // Parses the constructors and returns them in the needed type for creating the templates
@@ -398,8 +400,9 @@ public str extractClassSig(node html) {
 	str class_sig = "";
 	visit(html) {
 		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header") {
+			//text(div_class_sig);
 			visit(div_class_sig) {
-				case text:"text"(text_content) :{ class_sig += text_content + " ";}
+				case text:"text"(text_content) :{ class_sig += text_content + " "; }//println(class_sig);}
 				case alink:"a"(a_content) :if((alink@href ? "") != "") {
 					class_sig += alink@href + " ";
 				}
@@ -428,13 +431,7 @@ public bool isClassDeprecated(node html) {
 
 public str getClassName(node ast) {
 	visit(ast) {
-		case "class"(_,name,_,_): {
-			return name;
-		}
-		case "interface"(_,name,_,_): {
-			return name;
-		}
-		case "enum"(_,name,_,_): {
+		case "type"(_,_,name,_,_): {
 			return name;
 		}
 	}
@@ -442,14 +439,8 @@ public str getClassName(node ast) {
 
 public str getClassType(node ast) {
 	visit(ast) {
-		case "class"(_,_,_,_): {
-			return "class";
-		}
-		case "interface"(_,_,_,_): {
-			return "interface";
-		}
-		case "enum"(_,_,_,_): {
-			return "enum";
+		case "type"(_,typ,_,_,_): {
+			return typ;
 		}
 	}
 }
@@ -459,8 +450,22 @@ public Type getClassSuperClass(node ast) {
 	visit(ast) {
 		case ex:"extends"(l): {
 			visit(l){
-				case "link"(l1,l2): {
+				case "link"(l1,l2,l3): {
+					//println(l);
+					//println("LAYER 1 <l1>  <l2> <l3>");
 					superClass = getTypeFromUrl(l2);
+//					visit(l3){
+//						case "extends"(inpt):{
+//							visit(inpt){
+//								case "link"(e1,e2,e3):{
+//									println("LAYER 2 <e1>  <e2> <e3>");
+//								}
+//							}
+//						}//Enum link < E2 link2 <E>> 
+////"public static final enum Bitmap.Config extends  Enum /reference/java/lang/Enum.html \<E Enum /reference/java/lang/Enum.html \<E\>\>"
+////extends hoofd:type, E: type>\>
+//				//type (enum, enumref) [type(enum, enumref) :  <extends >		
+//					}
 				}
 			}
 		}
@@ -473,7 +478,7 @@ public list[Type] getClassInterfaces(node ast) {
 	visit(ast) {
 		case impl:"implements"(im): {
 			visit(im){			
-				case "link"(i1,i2): {
+				case "link"(i1,i2,i3): {
 					interfaces += getTypeFromUrl(i2);
 				}
 			}
@@ -484,13 +489,7 @@ public list[Type] getClassInterfaces(node ast) {
 
 public list[str] getClassModifiers(node ast) {
 	visit(ast) {
-		case "class"(modifiers,_,_,_): {
-			return modifiers;
-		}
-		case "interface"(modifiers,_,_,_): {
-			return modifiers;
-		}
-		case "enum"(modifiers,_,_,_): {
+		case "type"(modifiers,_,_,_,_): {
 			return modifiers;
 		}
 	}

@@ -10,7 +10,7 @@ keyword Keywords
 
 //grammar for class signatures
 //layout Spaces = [\t\ \n\r]* !>> [\t\ \n\r]; 
-lexical Iden = [a-zA-Z/\\.\[\]()0-9]+ !>> [a-zA-Z/\\.\[\]()0-9] \ Keywords ;
+lexical Iden = [a-zA-Z/\\.\[\]()0-9_]+ !>> [a-zA-Z/\\.\[\]()0-9_] \ Keywords ;
 lexical Modifiers = "static" | "public" | "abstract" | "protected" | "final" | "strict" | "private" ;
 // public static class ClassName extends extender implements implementer link implementer2 link2 \<T\>
 
@@ -20,23 +20,23 @@ lexical TypeCategory
 	| "interface"
 	| "enum"
 	; 
+	
 syntax TypeDef
-  = \type: Modifiers+ TypeCategory Iden ExtendsClause? ImplementsClause?
-  ;
+  = \type: Modifiers+ TypeCategory Iden ExtendsClause? ImplementsClause?;
   
-//will be of the form Object reference/linktoObject.html <>?
+//will be of the form Object reference/linktoObject.html <E extends <>> || <K,V>?
 syntax ExtendsClause 
-  = extends: "extends" IdenLink+
-  ;
+  = extends: "extends" IdenLink+ ;
   
 syntax ImplementsClause 
-  = implements: "implements" IdenLink+
-  ;
+  = implements: "implements" IdenLink+ ;
 
 syntax IdenLink
  = link: Iden Iden Constr?;
  
- syntax Constr = "\<" Iden ExtendsClause? "\>";
+syntax Constr 
+	= "\<" Iden ExtendsClause "\>"
+	| "\<" {Iden ","}* "\>" ;
  	
   
   //grammar for methods
