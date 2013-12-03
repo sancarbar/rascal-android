@@ -6,7 +6,6 @@ import lang::java::\syntax::Java15;
 //grammar for class signatures
 layout Spaces = [\t\ \n]* !>> [\t\ \n]; 
 lexical Iden = [a-zA-Z/\\.\[\]()0-9\<\>]+ !>> [a-zA-Z/\\.\[\]()0-9\<\>];
-
 // public static class ClassName extends extender implements implementer link implementer2 link2
 
 //should all be called class because it doesn't matter for the signature cases
@@ -40,6 +39,7 @@ syntax ImplementsClause
 
 syntax IdenLink
  = link: Iden Iden;
+ 
   //grammar for methods
   // modifiers return name (parameters)
  

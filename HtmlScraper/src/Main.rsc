@@ -239,7 +239,6 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 public list[loc] getNestedClasses(loc classUrl){
 
 	node ast = readHTMLFile(classUrl);
-	//table tags are not properly closed on website, therefore match on tableheader
 	str entry_type = "";
 	list[loc] nclasses = [];
 	visit(ast){
@@ -250,6 +249,7 @@ public list[loc] getNestedClasses(loc classUrl){
 					visit(content){
 						case "text"(text_con):{
 							entry_type = text_con;
+							//table tags are not properly closed on website, therefore match on tableheader Nested Classes
 						}
 					}
 				}
