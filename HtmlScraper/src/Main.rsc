@@ -230,6 +230,39 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 	return packageDescription;
 }
 
+
+public list[loc] getNestedClasses(loc classUrl){
+
+	node ast = readHTMLFile(classUrl);
+	//table tags are not properly closed on website, therefore match on tableheader
+	str entry_type = "";
+	list[loc] nclasses = [];
+	visit(ast){
+		case table:"table"(table_content): if((table@id ? "") == "nestedclasses"){
+			//text(table_content);
+			visit(table_content){
+				case th:"th"(content):{
+					visit(content){
+						case "text"(text_con):{
+							entry_type = text_con;
+						}
+					}
+				}
+			    case tdlink:"td"(td_content): if((tdlink@class ? "") == "jd-linkcol"){
+			    	visit(td_content){
+			    		case alink:"a"(a_content): if((alink@href ? "") != ""){
+									switch(entry_type){
+									case "Nested Classes": nclasses += |http://developer.android.com<alink@href>|;
+							}
+						}
+					}
+			    }
+			}
+		}
+	}
+	return nclasses;
+}
+
 public int getClassAPI(loc classURL) {
 	node ast = readHTMLFile(classURL);
 	visit(ast) {
