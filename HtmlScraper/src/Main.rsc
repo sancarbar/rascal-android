@@ -38,7 +38,7 @@ public void buildProject(int apiLevel) {
 	loc project = |http://developer.android.com/reference/packages.html|;
 	for (package <- getPackages(project)) {
 		map[str,set[map[str,value]]] information = getPackageInformation(package, apiLevel);
-		for (class <- information["classes"]) {
+		for (class <- information["classes"] + information["interfaces"] + information["exceptions"] + information["errors"]) {
 			url = class["url"];
 			packagePath = class["package_path"];
 			println("url <url>");
