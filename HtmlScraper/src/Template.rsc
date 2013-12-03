@@ -8,14 +8,14 @@ import List;
 data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \array(Type arrayType);
 
 // Creates Java file
-public void createClassFile(str packagePath, str classType, str name, str modifiers, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods, Type superClass, list[Type] interfaces, lrel[str name, str modifiers, Type constantType] constants, lrel[str signature, lrel[str, Type] arguments] constructors) {
+public void createClassFile(str packagePath, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, lrel[str name, str modifiers, Type constantType] constants, lrel[str signature, lrel[str, Type] arguments] constructors, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods) {
 	str packageName = replaceAll(packagePath, "/", ".");
 	loc packageLoc = |project://Android/src| + packagePath;
 	if(!exists(packageLoc)) {
 		mkDirectory(packageLoc);
 	}
 	loc classLoc = packageLoc + getFileName(name,".java");
-	appendToFile(classLoc, genClass(packageName, classType, name, modifiers, methods, superClass, interfaces, constants, constructors));
+	appendToFile(classLoc, genClass(packageName, classType, name, modifiers, superClass, interfaces, constants, constructors, methods));
 }
 
 public str getFileName(str name, str ext){
@@ -23,7 +23,7 @@ public str getFileName(str name, str ext){
 }
 
 // Helper function to generate a class
-public str genClass(str packageName, str classType, str name, str modifiers, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods, Type superClass, list[Type] interfaces, lrel[str name, str modifiers, Type constantType] constants, lrel[str signature, lrel[str, Type] arguments] constructors) {
+public str genClass(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, lrel[str name, str modifiers, Type constantType] constants, lrel[str signature, lrel[str, Type] arguments] constructors, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods) {
   return
   	"package <packageName>;
   	'

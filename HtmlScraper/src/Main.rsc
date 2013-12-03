@@ -36,82 +36,100 @@ public void main(value api) {
 	text(packages);
 }
 
-public void buildProject(value api) {
+public void buildProject(int apiLevel) {
 	loc project = |http://developer.android.com/reference/packages.html|;
 	for (package_info <- getPackages(project)) {
-		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"],api);
+		map[str,set[map[str,value]]] information = getPackageInformation(package_info["url"], apiLevel);
 		for (class <- information["classes"]) {
-			//url = |http://developer.android.com/reference/android/database/CursorJoiner.Result.html|; //class["url"];
 			url = class["url"];
-			classConstructs = getClassConstructs(url, api);
+			packagePath = class["package_path"];
 			println("url <url>");
-
-			// Get class information
-			str classSignature = extractClassSig(url);
-			node classAst = parseClassToAST(classSignature);
-			str classType = getClassType(classAst);
-			str className = getClassName(classAst);
-			str classModifiers = intercalate(" ", getClassModifiers(classAst));
-			Type classSuperClass = getClassSuperClass(classAst);
-			list[Type] classInterfaces = getClassInterfaces(classAst);
-
-			// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
-			if (classType == "interface") {
-				if (!isEmpty(classInterfaces)) {
-					classSuperClass = head(classInterfaces);
-					classInterfaces = [];
-				}
-			}
-
-			// Get constants and fields
-			lrel[str signature, lrel[str, Type] arguments] parsedConstructors = [];					
-			for(constructor <- classConstructs["constructors"]){
-				str constructorSignature = getConstructSignature(constructor);
-				list[str] argumentSignatures = getConstructArgumentSignatures(constructorSignature);
-				// Get arguments of constructor
-				lrel[str, Type] arguments = [];
-				for (argumentSignature <- argumentSignatures) {
-					str argumentName = getConstructName(argumentSignature);
-					Type argumentType = getConstructType(argumentName, argumentSignature, constructor);
-					arguments += <argumentName, argumentType>;
-				}
-				parsedConstructors += <constructorSignature, arguments>;
-			}
-
-			// Get constructors
-			lrel[str name, str modifiers, Type constantType] parsedConstants = [];
-			for(constant <- classConstructs["constants"] + classConstructs["fields"]){
-				str constantSignature = getConstructSignature(constant);
-				str constantName = getConstructName(constantSignature);
-				str constantModifiers = getConstructModifiers(constantSignature);
-				Type contantType = getConstructType(constantName, constantSignature, constant);
-				parsedConstants += <constantName, constantModifiers, contantType>;
-			}
-
-			// Get methods
-
-			lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] classMethods = [];
-			for(method <- classConstructs["methods"]) {
-				str methodSignature = getConstructSignature(method);
-				str methodName = getConstructName(methodSignature);
-				str methodModifiers = getConstructModifiers(methodSignature);
-				Type methodReturnType = getConstructType(methodName, methodSignature, method);
-				list[str] argumentSignatures = getConstructArgumentSignatures(methodSignature);
-
-				// Get arguments of method
-				lrel[str, Type] arguments = [];
-				for (argumentSignature <- argumentSignatures) {
-					str argumentName = getConstructName(argumentSignature);
-					Type argumentType = getConstructType(argumentName, argumentSignature, method);
-					arguments += <argumentName, argumentType>;
-				}
-
-				classMethods += <methodName, methodModifiers, methodReturnType, arguments>;
-			}
-
-			createClassFile(class["package_path"], classType, className, classModifiers, classMethods, classSuperClass, classInterfaces, parsedConstants, parsedConstructors);
+			buildClass(url, packagePath, apiLevel);
 		}
 	}
+}
+
+public void buildClass(loc url, str packagePath, int api) {
+	// Get class information
+	map[str, list[list[node]]] classConstructs = getClassConstructs(url, api);
+	str classSignature = extractClassSig(url);
+	node classAst = parseClassToAST(classSignature);
+	str classType = getClassType(classAst);
+	str className = getClassName(classAst);
+	str classModifiers = intercalate(" ", getClassModifiers(classAst));
+	Type classSuperClass = getClassSuperClass(classAst);
+	list[Type] classInterfaces = getClassInterfaces(classAst);
+	lrel[str, lrel[str, Type]] classConstructors = getConstructors(classConstructs["constructors"]);
+	lrel[str, str, Type] classMethodsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
+	lrel[str, str, Type, lrel[str, Type]] classMethods = getMethods(classConstructs["methods"]);
+
+	// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
+	if (classType == "interface") {
+		if (!isEmpty(classInterfaces)) {
+			classSuperClass = head(classInterfaces);
+			classInterfaces = [];
+		}
+	}
+
+	// Create class file
+	createClassFile(packagePath, classType, className, classModifiers, classSuperClass, classInterfaces, classMethodsAndFields, classConstructors, classMethods);
+}
+
+// Parses the constructors and returns them in the needed type for creating the templates
+public lrel[str, lrel[str, Type]] getConstructors(list[list[node]] constructorNodes) {
+	lrel[str, lrel[str, Type]] constructors = [];
+	// Get constructors
+	for(constructor <- constructorNodes){
+		str constructorSignature = getConstructSignature(constructor);
+		list[str] argumentSignatures = getConstructArgumentSignatures(constructorSignature);
+		// Get arguments of constructor
+		lrel[str, Type] arguments = [];
+		for (argumentSignature <- argumentSignatures) {
+			str argumentName = getConstructName(argumentSignature);
+			Type argumentType = getConstructType(argumentName, argumentSignature, constructor);
+			arguments += <argumentName, argumentType>;
+		}
+		constructors += <constructorSignature, arguments>;
+	}
+	return constructors;
+}
+
+// Parses the constants and fields and returns them in the needed type for creating the templates
+public lrel[str, str, Type] getConstantsAndFields(list[list[node]] methodsAndFieldsNodes) {
+	lrel[str, str, Type] constantsAndFields = [];
+	// Get constants and fields
+	for(constant <- methodsAndFieldsNodes){
+		str constantSignature = getConstructSignature(constant);
+		str constantName = getConstructName(constantSignature);
+		str constantModifiers = getConstructModifiers(constantSignature);
+		Type contantType = getConstructType(constantName, constantSignature, constant);
+		constantsAndFields += <constantName, constantModifiers, contantType>;
+	}
+	return constantsAndFields;
+}
+
+// Parses the methods and returns them in the needed type for creating the templates
+public lrel[str, str, Type, lrel[str, Type]] getMethods(list[list[node]] methodNodes) {
+	lrel[str, str, Type, lrel[str, Type]] methods = [];
+	// Get methods
+	for(method <- methodNodes) {
+		str methodSignature = getConstructSignature(method);
+		str methodName = getConstructName(methodSignature);
+		str methodModifiers = getConstructModifiers(methodSignature);
+		Type methodReturnType = getConstructType(methodName, methodSignature, method);
+		list[str] argumentSignatures = getConstructArgumentSignatures(methodSignature);
+
+		// Get arguments of method
+		lrel[str, Type] arguments = [];
+		for (argumentSignature <- argumentSignatures) {
+			str argumentName = getConstructName(argumentSignature);
+			Type argumentType = getConstructType(argumentName, argumentSignature, method);
+			arguments += <argumentName, argumentType>;
+		}
+
+		methods += <methodName, methodModifiers, methodReturnType, arguments>;
+	}
+	return methods;
 }
 
 public set[map[str,value]] getPackages(loc packageSummaryUrl) {
@@ -226,32 +244,15 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 	return packageDescription;
 }
 
-public list[list[node]] getMethodsOfClass(loc classUrl, value api) {
-	return getClassConstructs(classUrl, api)["methods"];
-}
-
-public list[list[node]] getConstructorsOfClass(loc classUrl, value api) {
-	return getClassConstructs(classUrl,api)["constructors"];
-}
-
-public list[list[node]] getConstantsOfClass(loc classUrl, value api) {
-	return getClassConstructs(classUrl, api)["constants"];
-}
-
-public list[list[node]] getFieldsOfClass(loc classUrl, value api) {
-	return getClassConstructs(classUrl,api)["fields"];
-}
-
-public int getClassAPI(loc classURL)
-{ 
-node ast = readHTMLFile(classURL);
-	visit(ast){
-		case div:"div"(class_API_container):if((div@class ? "") == "api-level"){
+public int getClassAPI(loc classURL) {
+	node ast = readHTMLFile(classURL);
+	visit(ast) {
+		case div:"div"(class_API_container):if((div@class ? "") == "api-level") {
 			visit(class_API_container) {
-				case text:"text"(apiLevelContent):{
+				case text:"text"(apiLevelContent): {
 					apiLevel = apiLevelContent;
-					if(/.*\s<lvl:[0-9]+>/ := apiLevel){
-					return toInt(lvl);
+					if(/.*\s<lvl:[0-9]+>/ := apiLevel) {
+						return toInt(lvl);
 					}
 				}						
 			}
