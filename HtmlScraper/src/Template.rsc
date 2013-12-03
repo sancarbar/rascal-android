@@ -6,20 +6,21 @@ import Set;
 import List;
 
 data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \array(Type arrayType);
-data Class = class(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, bool isDeprecated,list[ConstantField] constantsAndFields, list[Constructor] constructors,  list[Method] methods);
-data Method = method(str name, str modifiers, Type returnType, lrel[str argName, Type argType] arguments);
+data Class = class(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, bool isDeprecated, list[ConstantField] constantsAndFields, list[Constructor] constructors, list[Method] methods);
+data Method = method(str name, str modifiers, Type returnType, list[Argument] arguments);
 data ConstantField = constantField(str name, str modifiers, Type constantType);
-data Constructor = constructor(str signature, lrel[str argName, Type argType] arguments);
+data Constructor = constructor(str signature, list[Argument] arguments);
+data Argument = argument(str name, Type argType);
 
 // Creates Java file
-public void createClassFile(str packagePath, Class classInfo) {
+public void createClassFile(str packagePath, Class class) {
 	str packageName = replaceAll(packagePath, "/", ".");
 	loc packageLoc = |project://Android/src| + packagePath;
 	if(!exists(packageLoc)) {
 		mkDirectory(packageLoc);
 	}
-	loc classLoc = packageLoc + getFileName(classInfo.name,".java");
-	appendToFile(classLoc, genClass(packageName, classInfo));
+	loc classLoc = packageLoc + getFileName(class.name,".java");
+	appendToFile(classLoc, genClass(packageName, class));
 }
 
 public str getFileName(str name, str ext){
@@ -27,21 +28,21 @@ public str getFileName(str name, str ext){
 }
 
 // Helper function to generate a class
-public str genClass(str packageName, classInfo) {
+public str genClass(str packageName, Class class) {
   return
   	"package <packageName>;
   	'
-  	'<genImports(classInfo.methods, classInfo.superClass, classInfo.interfaces, classInfo.constantsAndFields, classInfo.constructors)>
+  	'<genImports(class.methods, class.superClass, class.interfaces, class.constantsAndFields, class.constructors)>
     '
-	'<if (classInfo.isDeprecated) {>@Deprecated<}>
-    '<classInfo.modifiers> <classInfo.classType> <classInfo.name><genExtend(classInfo.superClass)><genImplements(classInfo.interfaces)> {
-    '<for (constant <- classInfo.constantsAndFields) {>
+	'<if (class.isDeprecated) {>@Deprecated<}>
+    '<class.modifiers> <class.classType> <class.name><genExtend(class.superClass)><genImplements(class.interfaces)> {
+    '<for (constant <- class.constantsAndFields) {>
     	'<genConstant(constant)>
     '<}>
-    '<for (constructor <- classInfo.constructors) {>
+    '<for (constructor <- class.constructors) {>
     	'<genConstructor(constructor.signature)>
     '<}>
-    '<for (method <- classInfo.methods) {>
+    '<for (method <- class.methods) {>
     	'<genMethod(method.name, method.modifiers, method.returnType, method.arguments)>
     '<}>
     '}";
@@ -113,7 +114,7 @@ private str genConstructor(str signature) {
 }
 
 // Helper functions to generate a method
-private str genMethod(str name, str modifiers, Type returnType, lrel[str, Type] arguments) {
+private str genMethod(str name, str modifiers, Type returnType, list[Argument] arguments) {
 	return "\t<modifiers><printType(returnType)> <name>(<genArgumentsString(arguments)>)<genMethodBody(modifiers, returnType)>;";
 }
 
@@ -126,7 +127,7 @@ private str genMethodBody(str modifiers, Type returnType) {
 }
 
 // Helper function to generate an argument string
-public str genArgumentsString(lrel[str name, Type argType] arguments){
+public str genArgumentsString(list[Argument] arguments){
 	return intercalate(", ", ["<printType(arg.argType)> <arg.name>" | arg <- arguments]);
 }
 

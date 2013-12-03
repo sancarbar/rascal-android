@@ -11,7 +11,6 @@ import ParseTree;
 import SignatureParser;
 import util::Maybe;
 
-
 //annotations
 anno str node@id;
 anno str node@href;
@@ -50,14 +49,13 @@ public void buildProject(int apiLevel) {
 }
 
 public void buildClass(loc url, str packagePath, int api) {
-
-	// Create class file
-	classInfo = getClassInfo(url, packagePath, api);
-	if(classInfo is just)
-		createClassFile(packagePath, classInfo.val);
+	Maybe[Class] class = getClass(url, packagePath, api);
+	if (class is just) {
+		createClassFile(packagePath, class.val);
+	}
 }
 
-private Maybe[Class] getClassInfo(loc url, str packagePath, int api) {
+private Maybe[Class] getClass(loc url, str packagePath, int api) {
 	map[str, list[list[node]]] classConstructs = getClassConstructs(url, api);
 	node html = readHTMLFile(url);
 	str classSignature = extractClassSig(html);
@@ -90,16 +88,16 @@ private Maybe[Class] getClassInfo(loc url, str packagePath, int api) {
 // Parses the constructors and returns them in the needed type for creating the templates
 public list[Constructor] getConstructors(list[list[node]] constructorNodes) {
 	list[Constructor] constructors = [];
-	// Get constructors  str, lrel[str, Type]
+	// Get constructors
 	for(constructorNode <- constructorNodes){
 		str constructorSignature = getConstructSignature(constructorNode);
 		list[str] argumentSignatures = getConstructArgumentSignatures(constructorSignature);
 		// Get arguments of constructor
-		lrel[str, Type] arguments = [];
+		list[Argument] arguments = [];
 		for (argumentSignature <- argumentSignatures) {
 			str argumentName = getConstructName(argumentSignature);
 			Type argumentType = getConstructType(argumentName, argumentSignature, constructorNode);
-			arguments += <argumentName, argumentType>;
+			arguments += argument(argumentName, argumentType);
 		}
 		constructors += constructor(constructorSignature, arguments);
 	}
@@ -107,14 +105,14 @@ public list[Constructor] getConstructors(list[list[node]] constructorNodes) {
 }
 
 // Parses the constants and fields and returns them in the needed type for creating the templates
-public list[ConstantField] getConstantsAndFields(list[list[node]] methodsAndFieldsNodes) {
+public list[ConstantField] getConstantsAndFields(list[list[node]] constantsAndFieldsNodes) {
 	list[ConstantField] constantsAndFields = [];
 	// Get constants and fields
-	for(constant <- methodsAndFieldsNodes){
-		str constantSignature = getConstructSignature(constant);
+	for(constantOrFieldNode <- constantsAndFieldsNodes){
+		str constantSignature = getConstructSignature(constantOrFieldNode);
 		str constantName = getConstructName(constantSignature);
 		str constantModifiers = getConstructModifiers(constantSignature);
-		Type contantType = getConstructType(constantName, constantSignature, constant);
+		Type contantType = getConstructType(constantName, constantSignature, constantOrFieldNode);
 		constantsAndFields += constantField(constantName, constantModifiers, contantType);
 	}
 	return constantsAndFields;
@@ -132,11 +130,11 @@ public list[Method] getMethods(list[list[node]] methodNodes) {
 		list[str] argumentSignatures = getConstructArgumentSignatures(methodSignature);
 
 		// Get arguments of method
-		lrel[str, Type] arguments = [];
+		list[Argument] arguments = [];
 		for (argumentSignature <- argumentSignatures) {
 			str argumentName = getConstructName(argumentSignature);
 			Type argumentType = getConstructType(argumentName, argumentSignature, methodNode);
-			arguments += <argumentName, argumentType>;
+			arguments += argument(argumentName, argumentType);
 		}
 
 		methods += method(methodName, methodModifiers, methodReturnType, arguments);
