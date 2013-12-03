@@ -48,29 +48,32 @@ public void buildProject(int apiLevel) {
 }
 
 public void buildClass(loc url, str packagePath, int api) {
-	// Get class information
+
+	// Create class file
+	createClassFile(packagePath, getClassInfo(url, packagePath, api));
+}
+
+private tuple[str classType, str name, str modifiers, Type superClass, list[Type] interfaces, lrel[str, str, Type] constantsAndFields, lrel[str, lrel[str, Type]] constructors, lrel[str, str, Type, lrel[str, Type]] methods] getClassInfo(loc url, str packagePath, int api){
 	map[str, list[list[node]]] classConstructs = getClassConstructs(url, api);
 	str classSignature = extractClassSig(url);
 	node classAst = parseClassToAST(classSignature);
 	str classType = getClassType(classAst);
-	str className = getClassName(classAst);
-	str classModifiers = intercalate(" ", getClassModifiers(classAst));
-	Type classSuperClass = getClassSuperClass(classAst);
-	list[Type] classInterfaces = getClassInterfaces(classAst);
-	lrel[str, lrel[str, Type]] classConstructors = getConstructors(classConstructs["constructors"]);
-	lrel[str, str, Type] classMethodsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
-	lrel[str, str, Type, lrel[str, Type]] classMethods = getMethods(classConstructs["methods"]);
+	str name = getClassName(classAst);
+	str modifiers = intercalate(" ", getClassModifiers(classAst));
+	Type superClass = getClassSuperClass(classAst);
+	list[Type] interfaces = getClassInterfaces(classAst);
+	lrel[str, lrel[str, Type]] constructors = getConstructors(classConstructs["constructors"]);
+	lrel[str, str, Type] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
+	lrel[str, str, Type, lrel[str, Type]] methods = getMethods(classConstructs["methods"]);
 
 	// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
 	if (classType == "interface") {
-		if (!isEmpty(classInterfaces)) {
-			classSuperClass = head(classInterfaces);
-			classInterfaces = [];
+		if (!isEmpty(interfaces)) {
+			superClass = head(interfaces);
+			interfaces = [];
 		}
 	}
-
-	// Create class file
-	createClassFile(packagePath, classType, className, classModifiers, classSuperClass, classInterfaces, classMethodsAndFields, classConstructors, classMethods);
+	return <classType, name, modifiers, superClass, interfaces, constantsAndFields, constructors, methods>;
 }
 
 // Parses the constructors and returns them in the needed type for creating the templates

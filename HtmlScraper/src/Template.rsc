@@ -8,14 +8,14 @@ import List;
 data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \array(Type arrayType);
 
 // Creates Java file
-public void createClassFile(str packagePath, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, lrel[str name, str modifiers, Type constantType] constants, lrel[str signature, lrel[str, Type] arguments] constructors, lrel[str name, str modifiers, Type returnType, lrel[str, Type] arguments] methods) {
+public void createClassFile(str packagePath, tuple[str classType, str name, str modifiers, Type superClass, list[Type] interfaces, lrel[str, str, Type] constantsAndFields, lrel[str, lrel[str, Type]] constructors, lrel[str, str, Type, lrel[str, Type]] methods] classInfo) {
 	str packageName = replaceAll(packagePath, "/", ".");
 	loc packageLoc = |project://Android/src| + packagePath;
 	if(!exists(packageLoc)) {
 		mkDirectory(packageLoc);
 	}
-	loc classLoc = packageLoc + getFileName(name,".java");
-	appendToFile(classLoc, genClass(packageName, classType, name, modifiers, superClass, interfaces, constants, constructors, methods));
+	loc classLoc = packageLoc + getFileName(classInfo.name,".java");
+	appendToFile(classLoc, genClass(packageName, classInfo.classType, classInfo.name, classInfo.modifiers, classInfo.superClass, classInfo.interfaces, classInfo.constantsAndFields, classInfo.constructors, classInfo.methods));
 }
 
 public str getFileName(str name, str ext){
