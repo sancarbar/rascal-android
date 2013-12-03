@@ -53,9 +53,11 @@ public void buildClass(loc url, str packagePath, int api) {
 	createClassFile(packagePath, getClassInfo(url, packagePath, api));
 }
 
-private tuple[str classType, str name, str modifiers, Type superClass, list[Type] interfaces, lrel[str, str, Type] constantsAndFields, lrel[str, lrel[str, Type]] constructors, lrel[str, str, Type, lrel[str, Type]] methods] getClassInfo(loc url, str packagePath, int api){
+private tuple[str classType, str name, str modifiers, Type superClass, list[Type] interfaces, bool isDeprecated, lrel[str, str, Type] constantsAndFields, lrel[str, lrel[str, Type]] constructors, lrel[str, str, Type, lrel[str, Type]] methods] getClassInfo(loc url, str packagePath, int api){
 	map[str, list[list[node]]] classConstructs = getClassConstructs(url, api);
-	str classSignature = extractClassSig(url);
+	node html = readHTMLFile(url);
+	str classSignature = extractClassSig(html);
+	bool isDeprecated = isClassDeprecated(html);
 	node classAst = parseClassToAST(classSignature);
 	str classType = getClassType(classAst);
 	str name = getClassName(classAst);
@@ -73,7 +75,7 @@ private tuple[str classType, str name, str modifiers, Type superClass, list[Type
 			interfaces = [];
 		}
 	}
-	return <classType, name, modifiers, superClass, interfaces, constantsAndFields, constructors, methods>;
+	return <classType, name, modifiers, superClass, interfaces, isDeprecated, constantsAndFields, constructors, methods>;
 }
 
 // Parses the constructors and returns them in the needed type for creating the templates
@@ -392,10 +394,9 @@ public list[str] getConstructArgumentSignatures(str constructSignature) {
 	}
 }
 
-public str extractClassSig(loc classInformationUrl){
-	node html = readHTMLFile(classInformationUrl);
+public str extractClassSig(node html) {
 	str class_sig = "";
-	visit(html){
+	visit(html) {
 		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header") {
 			visit(div_class_sig) {
 				case text:"text"(text_content) :{ class_sig += text_content + " ";}
@@ -406,6 +407,23 @@ public str extractClassSig(loc classInformationUrl){
 		}
 	}
 	return trim(class_sig);
+}
+
+public bool isClassDeprecated(node html) {
+	visit(html) {
+		case divC:"div"(divClassContent): if((divC@id ? "") == "jd-content") {
+			visit(divClassContent) {
+				case divD:"div"(divDescription): if((divD@class ? "") == "jd-descr") {
+					visit(divClassContent) {
+						case pC:"p"(pContent): if((pC@class ? "") == "caution") {
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+	return false;
 }
 
 public str getClassName(node ast) {
