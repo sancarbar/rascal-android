@@ -13,7 +13,7 @@ data Constructor = constructor(str signature, list[Argument] arguments);
 data Argument = argument(str name, Type argType);
 
 // Creates Java file
-public void createClassFile(str packagePath, Class class, loc eclipseProject = |project://Android|) {
+public void createClassFile(str packagePath, Class class, loc eclipseProject = |project://Android/src|) {
 	str packageName = replaceAll(packagePath, "/", ".");
 	loc packageLoc = eclipseProject + packagePath;
 	if(!exists(packageLoc)) {
