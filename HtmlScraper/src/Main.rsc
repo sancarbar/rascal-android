@@ -63,25 +63,25 @@ public void buildProject(int apiLevel) {
 public void buildClass(loc url, str packagePath, int apiLevel) {
 	Maybe[Class] class = getClass(url, packagePath, apiLevel);
 	if (class is just) {
-		createClassFile(packagePath, class.val);
+		createClassFile(packagePath, class.val, eclipseProject = |project://GeneratedJavaSource|);
 	}
 }
 
 private Maybe[Class] getClass(loc url, str packagePath, int apiLevel) {
 	node classHtml = readHTMLFile(url);
 	map[str, list[list[node]]] classConstructs = getClassConstructs(classHtml, apiLevel);
-	node classAst = parseClassToAST(classSignature);
-	str classType = getClassType(classAst);
-	str name = getClassName(classAst);
 	str classSignature = extractClassSig(classHtml);
 	bool isDeprecated = isClassDeprecated(classHtml);
+	node classSignatureAst = parseClassSignatureToAST(classSignature);
+	str classType = getClassType(classSignatureAst);
+	str name = getClassName(classSignatureAst);
 	//check for innerclasses
 	if(contains(name, ".")){
 		return nothing();
 	}else{
-		str modifiers = intercalate(" ", getClassModifiers(classAst));
-		Type superClass = getClassSuperClass(classAst);
-		list[Type] interfaces = getClassInterfaces(classAst);
+		str modifiers = intercalate(" ", getClassModifiers(classSignatureAst));
+		Type superClass = getClassSuperClass(classSignatureAst);
+		list[Type] interfaces = getClassInterfaces(classSignatureAst);
 		list[Constructor] constructors = getConstructors(classConstructs["constructors"]);
 		list[ConstantField] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
 		list[Method] methods = getMethods(classConstructs["methods"]);
