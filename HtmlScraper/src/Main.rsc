@@ -60,14 +60,32 @@ public void buildProject(int apiLevel) {
 	println("finished at: <now()>");
 }
 
+
+public void testBuild(){
+	loc url = |http://developer.android.com/reference/android/R.html|;
+	str packagePath = "android";
+	int apiLevel = 11;
+	buildClass(url, packagePath, apiLevel);
+
+}
+
 public void buildClass(loc url, str packagePath, int apiLevel) {
-	Maybe[Class] class = getClass(url, packagePath, apiLevel);
-	if (class is just) {
-		createClassFile(packagePath, class.val);
+	Maybe[Class] maybeClass = getClass(url, packagePath, apiLevel);
+	list[Class] nestedClasses = [];
+	for(nestedClassUrl <- getNestedClasses(url)){
+		nestedClass = getClass(nestedClassUrl, packagePath, apiLevel, acceptNestedClass = true);
+		if (nestedClass is just)
+			nestedClasses += nestedClass.val; 
+	}
+	
+	if (maybeClass is just) {
+		Class class = maybeClass.val;
+		class.nestedClasses = nestedClasses;
+		createClassFile(packagePath, class);
 	}
 }
 
-private Maybe[Class] getClass(loc url, str packagePath, int apiLevel) {
+private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool acceptNestedClass = false) {
 	node classHtml = readHTMLFile(url);
 	map[str, list[list[node]]] classConstructs = getClassConstructs(classHtml, apiLevel);
 	str classSignature = extractClassSig(classHtml);
@@ -76,25 +94,28 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel) {
 	str classType = getClassType(classSignatureAst);
 	str name = getClassName(classSignatureAst);
 	//check for innerclasses
-	if(contains(name, ".")){
-		return nothing();
-	}else{
-		str modifiers = intercalate(" ", getClassModifiers(classSignatureAst));
-		Type superClass = getClassSuperClass(classSignatureAst);
-		list[Type] interfaces = getClassInterfaces(classSignatureAst);
-		list[Constructor] constructors = getConstructors(classConstructs["constructors"]);
-		list[ConstantField] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
-		list[Method] methods = getMethods(classConstructs["methods"]);
 	
-		// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
-		if (classType == "interface") {
-			if (!isEmpty(interfaces)) {
-				superClass = head(interfaces);
-				interfaces = [];
-			}
-		}
-		return just(class(packagePath, classType, name, modifiers, superClass, interfaces, isDeprecated, constantsAndFields, constructors, methods));
+	if(contains(name, ".")){
+		if(acceptNestedClass)
+			name = substring(name, findFirst(name, ".") + 1, size(name));
+		else
+			return nothing();
 	}
+	str modifiers = intercalate(" ", getClassModifiers(classSignatureAst));
+	Type superClass = getClassSuperClass(classSignatureAst);
+	list[Type] interfaces = getClassInterfaces(classSignatureAst);
+	list[Constructor] constructors = getConstructors(classConstructs["constructors"]);
+	list[ConstantField] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
+	list[Method] methods = getMethods(classConstructs["methods"]);
+
+	// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
+	if (classType == "interface") {
+		if (!isEmpty(interfaces)) {
+			superClass = head(interfaces);
+			interfaces = [];
+		}
+	}
+	return just(class(packagePath, classType, name, modifiers, superClass, interfaces, isDeprecated, constantsAndFields, constructors, methods, []));
 }
 
 // Parses the constructors and returns them in the needed type for creating the templates

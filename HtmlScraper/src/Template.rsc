@@ -6,7 +6,7 @@ import Set;
 import List;
 
 data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \array(Type arrayType);
-data Class = class(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, bool isDeprecated, list[ConstantField] constantsAndFields, list[Constructor] constructors, list[Method] methods);
+data Class = class(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, bool isDeprecated, list[ConstantField] constantsAndFields, list[Constructor] constructors, list[Method] methods, list[Class] nestedClasses);
 data Method = method(str name, str modifiers, Type returnType, list[Argument] arguments);
 data ConstantField = constantField(str name, str modifiers, Type constantType);
 data Constructor = constructor(str signature, list[Argument] arguments);
@@ -28,12 +28,14 @@ public str getFileName(str name, str ext){
 }
 
 // Helper function to generate a class
-public str genClass(str packageName, Class class) {
+public str genClass(str packageName, Class class, bool isNestedClass = false) {
   return
-  	"package <packageName>;
+  	"
+  	'<if (!isNestedClass) {>
+  	'package <packageName>;
   	'
   	'<genImports(class.methods, class.superClass, class.interfaces, class.constantsAndFields, class.constructors)>
-    '
+    '<}>
 	'<if (class.isDeprecated) {>@Deprecated<}>
     '<class.modifiers> <class.classType> <class.name><genExtend(class.superClass)><genImplements(class.interfaces)> {
     '<for (constant <- class.constantsAndFields) {>
@@ -44,6 +46,9 @@ public str genClass(str packageName, Class class) {
     '<}>
     '<for (method <- class.methods) {>
     	'<genMethod(method.name, method.modifiers, method.returnType, method.arguments)>
+    '<}>
+    '<for (nestedClass <- class.nestedClasses) {>
+    	'<genClass(packageName, nestedClass, isNestedClass = true)>
     '<}>
     '}";
 }
