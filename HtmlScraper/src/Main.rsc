@@ -143,8 +143,9 @@ public list[ConstantField] getConstantsAndFields(list[list[node]] constantsAndFi
 	// Get constants and fields
 	for(constantOrFieldNode <- constantsAndFieldsNodes){
 		str constantSignature = getConstructSignature(constantOrFieldNode);
-		str constantName = getConstructName(constantSignature);
-		str constantModifiers = getConstructModifiers(constantSignature);
+		node constantAst = parseConstructSignatureToAST(constantSignature);
+		str constantName = getConstructName1(constantAst); //getConstructName(constantSignature);
+		str constantModifiers =  getConstructModifiers1(constantAst); //getConstructModifiers(constantSignature);
 		Type contantType = getConstructType(constantName, constantSignature, constantOrFieldNode);
 		constantsAndFields += constantField(constantName, constantModifiers, contantType);
 	}
@@ -157,8 +158,9 @@ public list[Method] getMethods(list[list[node]] methodNodes) {
 	// Get methods
 	for(methodNode <- methodNodes) {
 		str methodSignature = getConstructSignature(methodNode);
-		str methodName = getConstructName(methodSignature);
-		str methodModifiers = getConstructModifiers(methodSignature);
+		node methodAst = parseConstructSignatureToAST(methodSignature);
+		str methodName = getConstructName1(methodAst); //getConstructName(methodSignature);
+		str methodModifiers = getConstructModifiers1(methodAst); //getConstructModifiers(methodSignature);
 		Type methodReturnType = getConstructType(methodName, methodSignature, methodNode);
 		list[str] argumentSignatures = getConstructArgumentSignatures(methodSignature);
 
@@ -401,12 +403,28 @@ public str getConstructName(str constructSignature) {
 	return name;
 }
 
+public str getConstructName1(node methodAst) {
+	visit(methodAst) {
+		case "method"(modifiers, constructType, name, params): return name;
+		case "constantOrField"(modifiers, constructType, name): return name;
+		case "constructor"(modifiers, name, params): return name;
+	}
+}
+
 public str getConstructModifiers(str constructSignature) {
 	str modifiers = "";
 	if (/<modifierNames:(public|private|protected|static|abstract|final|\s)*>/ := constructSignature) {
 		modifiers = modifierNames;
 	}
 	return modifiers;
+}
+
+public str getConstructModifiers1(node methodAst) {
+	visit(methodAst) {
+		case "method"(modifiers, constructType, name, params): return intercalate(" ", modifiers);
+		case "constantOrField"(modifiers, constructType, name): return intercalate(" ", modifiers);
+		case "constructor"(modifiers, name, params): return intercalate(" ", modifiers);
+	}
 }
 
 public Type getConstructType(str constructName, str constructSignature, list[node] constructNodes) {
@@ -429,6 +447,13 @@ public Type getConstructType(str constructName, str constructSignature, list[nod
 	}
 	return constructType;
 }
+
+//public str getMethodReturnType(node methodAst) {
+//	visit(methodAst) {
+//		case "method"(modifiers, constructType, name, params): return constructType;
+//		case "constantOrField"(modifiers, constructType, name): return constructType;
+//	}
+//}
 
 public list[str] getConstructArgumentSignatures(str constructSignature) {
 	if (/\(<params:.*>\)/ := constructSignature) {
@@ -479,8 +504,8 @@ public str getClassName(node ast) {
 
 public str getClassType(node ast) {
 	visit(ast) {
-		case "type"(_,typ,_,_,_): {
-			return typ;
+		case "type"(_,classType,_,_,_): {
+			return classType;
 		}
 	}
 }

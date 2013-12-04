@@ -120,7 +120,7 @@ private str genConstructor(str signature) {
 
 // Helper functions to generate a method
 private str genMethod(str name, str modifiers, Type returnType, list[Argument] arguments) {
-	return "\t<modifiers><printType(returnType)> <name>(<genArgumentsString(arguments)>)<genMethodBody(modifiers, returnType)>;";
+	return "\t<modifiers> <printType(returnType)> <name>(<genArgumentsString(arguments)>)<genMethodBody(modifiers, returnType)>;";
 }
 
 private str genMethodBody(str modifiers, Type returnType) {

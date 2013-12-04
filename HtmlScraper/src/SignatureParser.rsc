@@ -19,9 +19,10 @@ keyword Keywords
 	| "final"
 	| "strict"
 	| "private"
+	| "synchronized"
 	;
 
-lexical Iden = [a-zA-Z/\\.\[\]()0-9_]+ !>> [a-zA-Z/\\.\[\]()0-9_] \ Keywords;
+lexical Iden = [a-zA-Z/\\.\[\]0-9_?]+ !>> [a-zA-Z/\\.\[\]0-9_?] \ Keywords;
 
 lexical Modifiers
 	= "static"
@@ -31,6 +32,7 @@ lexical Modifiers
 	| "final"
 	| "strict"
 	| "private"
+	| "synchronized"
 	;
 
 lexical TypeCategory	
@@ -54,36 +56,68 @@ syntax ImplementsClause
 	;
 
 syntax IdenLink
-	= link: Iden Iden Constr?
+	= link: Iden Iden Generic?
 	;
  
-syntax Constr 
+syntax Generic
 	= "\<" Iden ExtendsClause "\>"
 	| "\<" {Iden ","}* "\>"
 	;
 
-syntax MethodDef
-	= method: Modifiers+ ReturnType Iden"(" Params+ ")"
-	| constant: Modifiers+ ReturnType Iden //same as fields?
-	| fields: Modifiers+ ReturnType Iden
-	| constructor: Modifiers+ Iden "(" Params+ ")"
+syntax ConstructDef
+	= method: Modifiers+ ConstructType Iden"(" Params ")"
+	| constantOrField: Modifiers+ ConstructType Iden
+	| constructor: Modifiers+ Iden "(" Params ")"
 	;
 
-syntax ReturnType
-	= Iden
+syntax ConstructType
+	= constructType: Iden Generic2?
+	;
+
+syntax Generic2
+	= "\<" {Generic3 ","}* "\>"
+	| "\<" Iden SuperClause2 "\>"
+	| "\<" Iden Generic2 "\>"
+	| "\<" {Iden ","}* "\>"
+	;
+
+syntax Generic3
+	= Iden ExtendsClause2
+	;
+
+syntax ExtendsClause2
+	= extends: "extends" IdenLink2+
+	;
+
+syntax SuperClause2
+	= extends: "super" IdenLink2+
+	;
+
+syntax IdenLink2
+	= link: Iden Iden? Generic2? //TODO: probably remove ? after Iden, added because otherwise it won't parse 'ResponseHandler<? extends T>', but probably there should be a link after T
 	;
 
 syntax Params
-	= empty:
-	| nonempty: Iden
+	= params: {Param ","}*
+	;
+
+syntax Param
+	= param: Iden Generic2? Iden
 	;
 
 public node parseClassSignatureToAST(str classSignature) {
-	 node ast = implode(#node, parse(#TypeDef, classSignature));
-	 return ast;
+	println(classSignature);
+	node ast = implode(#node, parse(#TypeDef, classSignature));
+	return ast;
 }
 
-public node parseMethodSignatureToAST(str methodSignature) {
-	node ast = implode(#node, parse(#MethodDef, methodSignature));
+public node parseConstructSignatureToAST(str methodSignature) {
+	println(methodSignature);
+	node ast = implode(#node, parse(#ConstructDef, methodSignature));
     return ast;
 }
+
+//public T execute (HttpUriRequest request, ResponseHandler<? extends T> responseHandler, HttpContext context)
+//public Collection<List<?>> getPathToNames ()
+//public abstract int drainTo (Collection<? super E> c)
+//public void putAll (Map<? extends K, ? extends V> m)
