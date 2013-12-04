@@ -98,7 +98,7 @@ private str genExtend(noExtend){
 }
 
 public str genConstant(ConstantField constant) {
-	return "\t<constant.modifiers><printType(constant.constantType)> <constant.name> = <getDefaultTypeValue(constant.constantType)>; ";
+	return "\t<constant.modifiers> <printType(constant.constantType)> <constant.name> = <getDefaultTypeValue(constant.constantType)>; ";
 }
 
 // Helper function to generate the implements
