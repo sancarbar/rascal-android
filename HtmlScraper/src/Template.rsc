@@ -13,9 +13,9 @@ data Constructor = constructor(str signature, list[Argument] arguments);
 data Argument = argument(str name, Type argType);
 
 // Creates Java file
-public void createClassFile(str packagePath, Class class) {
+public void createClassFile(str packagePath, Class class, loc eclipseProject = |project://Android|) {
 	str packageName = replaceAll(packagePath, "/", ".");
-	loc packageLoc = |project://Android/src| + packagePath;
+	loc packageLoc = eclipseProject + packagePath;
 	if(!exists(packageLoc)) {
 		mkDirectory(packageLoc);
 	}
