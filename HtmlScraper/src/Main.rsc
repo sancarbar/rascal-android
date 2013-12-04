@@ -10,6 +10,7 @@ import Template;
 import ParseTree;
 import SignatureParser;
 import util::Maybe;
+import DateTime;
 
 //annotations
 anno str node@id;
@@ -36,16 +37,27 @@ public void main(int apiLevel) {
 }
 
 public void buildProject(int apiLevel) {
+	println("start at: <now()>");
+
 	loc project = |http://developer.android.com/reference/packages.html|;
-	for (package <- getPackages(project)) {
+	set[loc] packages = getPackages(project);
+	int packageIndex = 1;
+
+	println("packages: <size(packages)>");
+	for (package <- packages) {
 		map[str,set[map[str,value]]] information = getPackageInformation(package, apiLevel);
+		println("<packageIndex>. Package <package>");
 		for (class <- information["classes"] + information["interfaces"] + information["exceptions"] + information["errors"]) {
 			url = class["url"];
 			packagePath = class["package_path"];
-			println("url <url>");
+			println("-- Class <url>");
+
 			buildClass(url, packagePath, apiLevel);
 		}
+		packageIndex += 1;
 	}
+
+	println("finished at: <now()>");
 }
 
 public void buildClass(loc url, str packagePath, int apiLevel) {
