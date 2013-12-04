@@ -63,7 +63,7 @@ public void buildProject(int apiLevel) {
 public void buildClass(loc url, str packagePath, int apiLevel) {
 	Maybe[Class] class = getClass(url, packagePath, apiLevel);
 	if (class is just) {
-		createClassFile(packagePath, class.val, eclipseProject = |project://GeneratedJavaSource|);
+		createClassFile(packagePath, class.val);
 	}
 }
 
