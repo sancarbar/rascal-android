@@ -70,11 +70,11 @@ public void buildClass(loc url, str packagePath, int apiLevel) {
 private Maybe[Class] getClass(loc url, str packagePath, int apiLevel) {
 	node classHtml = readHTMLFile(url);
 	map[str, list[list[node]]] classConstructs = getClassConstructs(classHtml, apiLevel);
-	str classSignature = extractClassSig(html);
-	bool isDeprecated = isClassDeprecated(html);
 	node classAst = parseClassToAST(classSignature);
 	str classType = getClassType(classAst);
 	str name = getClassName(classAst);
+	str classSignature = extractClassSig(classHtml);
+	bool isDeprecated = isClassDeprecated(classHtml);
 	//check for innerclasses
 	if(contains(name, ".")){
 		return nothing();
