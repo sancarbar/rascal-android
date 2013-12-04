@@ -48,16 +48,16 @@ public void buildProject(int apiLevel) {
 	}
 }
 
-public void buildClass(loc url, str packagePath, int api) {
-	Maybe[Class] class = getClass(url, packagePath, api);
+public void buildClass(loc url, str packagePath, int apiLevel) {
+	Maybe[Class] class = getClass(url, packagePath, apiLevel);
 	if (class is just) {
 		createClassFile(packagePath, class.val);
 	}
 }
 
-private Maybe[Class] getClass(loc url, str packagePath, int api) {
-	map[str, list[list[node]]] classConstructs = getClassConstructs(url, api);
-	node html = readHTMLFile(url);
+private Maybe[Class] getClass(loc url, str packagePath, int apiLevel) {
+	node classHtml = readHTMLFile(url);
+	map[str, list[list[node]]] classConstructs = getClassConstructs(classHtml, apiLevel);
 	str classSignature = extractClassSig(html);
 	bool isDeprecated = isClassDeprecated(html);
 	node classAst = parseClassToAST(classSignature);
@@ -143,11 +143,11 @@ public list[Method] getMethods(list[list[node]] methodNodes) {
 }
 
 public set[loc] getPackages(loc packageSummaryUrl) {
-	node html = readHTMLFile(packageSummaryUrl);
+	node overviewHtml = readHTMLFile(packageSummaryUrl);
 	set[loc] packages = {};
 	
 	// Get parent div with list of anchors.
-	visit(html) {
+	visit(overviewHtml) {
 		case parent:"div"(ulList): if((parent@id ? "") == "packages-nav") {
 			// Get anchors.
 			visit(ulList) {
@@ -163,7 +163,7 @@ public set[loc] getPackages(loc packageSummaryUrl) {
 
 
 public map[str, set[map[str, value]]] getPackageInformation(loc packageInformationUrl, value api) {
-	node html = readHTMLFile(packageInformationUrl);
+	node packageHtml = readHTMLFile(packageInformationUrl);
 	
 	set[str] urlSet = {};
 	set[map[str,value]] classSet = {};
@@ -172,7 +172,7 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 	set[map[str,value]] enumsSet = {};
 	set[map[str,value]] errorSet = {};
 	
-	visit(html){
+	visit(packageHtml) {
 		// Get content div.
 		case parent_div_elem:"div"(div_content): if((parent_div_elem@id ? "") == "jd-content") {
 		
@@ -197,7 +197,7 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 										case atext:"text"(text_content): { 
 											map[str,value] package_info = (
 
-												"sig" : extractClassSig(html),
+												//"sig" : extractClassSig(html),
 												//sure it shouldn't be the one below? because the html does not contain the link to the class?
 												//"sig" : extractClassSig(readHTMLFile(|http://developer.android.com<alink@href>|)),
 												"name":text_content,
@@ -247,8 +247,7 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 }
 
 
-public list[loc] getNestedClasses(loc classUrl){
-
+public list[loc] getNestedClasses(loc classUrl) {
 	node ast = readHTMLFile(classUrl);
 	str entry_type = "";
 	list[loc] nclasses = [];
@@ -296,8 +295,7 @@ public int getClassAPI(loc classURL) {
 	return 1; // if there is no apilevel in the sourcecode it will be considered as lvl 1
 }
 
-public map[str, list[list[node]]] getClassConstructs(loc classUrl, int apiLevel) {
-	node html = readHTMLFile(classUrl);
+public map[str, list[list[node]]] getClassConstructs(node classHtml, int apiLevel) {
 	list[list[node]] methods = [];
 	list[list[node]] constants = [];
 	list[list[node]] fields = [];
@@ -305,7 +303,7 @@ public map[str, list[list[node]]] getClassConstructs(loc classUrl, int apiLevel)
 	list[list[node]] innerClasses = [];
 	
 	str construct;
-	visit(html) {
+	visit(classHtml) {
 		case h2Elem:"h2"(h2Content): {
 			visit(h2Content) {
 				case textElem:"text"(textContent): construct = textContent;
@@ -405,9 +403,9 @@ public list[str] getConstructArgumentSignatures(str constructSignature) {
 	}
 }
 
-public str extractClassSig(node html) {
+public str extractClassSig(node classHtml) {
 	str class_sig = "";
-	visit(html) {
+	visit(classHtml) {
 		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header") {
 			//text(div_class_sig);
 			visit(div_class_sig) {
@@ -421,8 +419,8 @@ public str extractClassSig(node html) {
 	return trim(class_sig);
 }
 
-public bool isClassDeprecated(node html) {
-	visit(html) {
+public bool isClassDeprecated(node classHtml) {
+	visit(classHtml) {
 		case divC:"div"(divClassContent): if((divC@id ? "") == "jd-content") {
 			visit(divClassContent) {
 				case divD:"div"(divDescription): if((divD@class ? "") == "jd-descr") {
