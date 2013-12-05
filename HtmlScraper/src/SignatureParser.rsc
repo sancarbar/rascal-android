@@ -71,18 +71,18 @@ syntax ConstructDef
 	;
 
 syntax ConstructType
-	= constructType: Iden Generic2?
+	= constructType: Iden NestedGeneric?
+	;
+
+syntax NestedGeneric
+	= "\<" {Generic2 ","}* "\>"
 	;
 
 syntax Generic2
-	= "\<" {Generic3 ","}* "\>"
-	| "\<" Iden SuperClause2 "\>"
-	| "\<" Iden Generic2 "\>"
-	| "\<" {Iden ","}* "\>"
-	;
-
-syntax Generic3
-	= Iden ExtendsClause2
+	= simpleGeneric: Iden
+	| extendsGeneric: Iden ExtendsClause2
+	| superGeneric: Iden SuperClause2
+	| nestedGeneric: Iden NestedGeneric
 	;
 
 syntax ExtendsClause2
@@ -90,11 +90,11 @@ syntax ExtendsClause2
 	;
 
 syntax SuperClause2
-	= extends: "super" IdenLink2+
+	= super: "super" IdenLink2+
 	;
 
 syntax IdenLink2
-	= link: Iden Iden? Generic2? //TODO: probably remove ? after Iden, added because otherwise it won't parse 'ResponseHandler<? extends T>', but probably there should be a link after T
+	= link: Iden Iden? NestedGeneric? //TODO: probably remove ? after Iden, added because otherwise it won't parse 'ResponseHandler<? extends T>', but probably there should be a link after T
 	;
 
 syntax Params
@@ -102,7 +102,7 @@ syntax Params
 	;
 
 syntax Param
-	= param: Iden Generic2? Iden
+	= param: Iden NestedGeneric? Iden
 	;
 
 public node parseClassSignatureToAST(str classSignature) {
