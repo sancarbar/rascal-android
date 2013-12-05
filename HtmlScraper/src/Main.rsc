@@ -157,7 +157,7 @@ public list[Method] getMethods(list[list[node]] methodNodes) {
 	list[Method] methods = [];
 	// Get methods
 	for(methodNode <- methodNodes) {
-		str methodSignature = getConstructSignature(methodNode);
+		str methodSignature = getConstructSignature1(methodNode);
 		node methodAst = parseConstructSignatureToAST(methodSignature);
 		str methodName = getConstructName1(methodAst); //getConstructName(methodSignature);
 		str methodModifiers = getConstructModifiers1(methodAst); //getConstructModifiers(methodSignature);
@@ -389,9 +389,19 @@ public map[str, list[list[node]]] getClassConstructs(node classHtml, int apiLeve
 
 public str getConstructSignature(list[node] constructNodes) {
 	str signature = "";
-	visit(constructNodes) {
+	visit (constructNodes) {
 		case text:"text"(partOfSignature): signature += partOfSignature;
 	}
+	return signature;
+}
+
+public str getConstructSignature1(list[node] constructNodes) {
+	str signature = "";
+	visit (constructNodes) {
+		case text:"text"(partOfSignature): signature += partOfSignature;
+		case alink:"a"(linkToTypes): if ((alink@href ? "") != "") signature += " " + alink@href + " ";
+	}
+	println(signature);
 	return signature;
 }
 

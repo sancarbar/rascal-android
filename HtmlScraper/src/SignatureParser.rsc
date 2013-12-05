@@ -65,13 +65,9 @@ syntax Generic
 	;
 
 syntax ConstructDef
-	= method: Modifiers+ ConstructType Iden"(" Params ")"
-	| constantOrField: Modifiers+ ConstructType Iden
+	= method: Modifiers+ Type Iden "(" Params ")"
+	| constantOrField: Modifiers+ Type Iden
 	| constructor: Modifiers+ Iden "(" Params ")"
-	;
-
-syntax ConstructType
-	= constructType: Iden NestedGeneric?
 	;
 
 syntax NestedGeneric
@@ -79,22 +75,22 @@ syntax NestedGeneric
 	;
 
 syntax Generic2
-	= simpleGeneric: Iden
-	| extendsGeneric: Iden ExtendsClause2
-	| superGeneric: Iden SuperClause2
-	| nestedGeneric: Iden NestedGeneric
+	= simpleGeneric: Type
+	| extendsGeneric: Type ExtendsClause2
+	| superGeneric: Type SuperClause2
 	;
 
 syntax ExtendsClause2
-	= extends: "extends" IdenLink2+
+	= "extends" Type
 	;
 
 syntax SuperClause2
-	= super: "super" IdenLink2+
+	= "super" Type
 	;
 
-syntax IdenLink2
-	= link: Iden Iden? NestedGeneric? //TODO: probably remove ? after Iden, added because otherwise it won't parse 'ResponseHandler<? extends T>', but probably there should be a link after T
+syntax Type
+	= withoutLink: Iden NestedGeneric?
+	| withLink: Iden Iden NestedGeneric?
 	;
 
 syntax Params
@@ -102,7 +98,7 @@ syntax Params
 	;
 
 syntax Param
-	= param: Iden NestedGeneric? Iden
+	= Type Iden
 	;
 
 public node parseClassSignatureToAST(str classSignature) {
@@ -117,7 +113,16 @@ public node parseConstructSignatureToAST(str methodSignature) {
     return ast;
 }
 
-//public T execute (HttpUriRequest request, ResponseHandler<? extends T> responseHandler, HttpContext context)
-//public Collection<List<?>> getPathToNames ()
-//public abstract int drainTo (Collection<? super E> c)
-//public void putAll (Map<? extends K, ? extends V> m)
+public node parseConstructSignatureToAST() {
+ 	node ast = implode(#node, parse(#ConstructDef, |project://HtmlScraper/src/test.txt|));
+    return ast;
+}
+
+//public static AtomicReferenceFieldUpdater /reference/java/util/concurrent/atomic/AtomicReferenceFieldUpdater.html <U, W> newUpdater (Class /reference/java/lang/Class.html <U> tclass, Class /reference/java/lang/Class.html <W> vclass, String /reference/java/lang/String.html  fieldName)
+//public T execute (HttpUriRequest /reference/org/apache/http/client/methods/HttpUriRequest.html  request, ResponseHandler /reference/org/apache/http/client/ResponseHandler.html <? extends T> responseHandler, HttpContext /reference/org/apache/http/protocol/HttpContext.html  context)
+//public Set /reference/java/util/Set.html <String /reference/java/lang/String.html > getExtendedKeyUsage ()
+//public Collection /reference/java/util/Collection.html <List /reference/java/util/List.html <?>> getPathToNames ()
+//public abstract int drainTo (Collection /reference/java/util/Collection.html <? super E> c)
+//public void putAll (Map /reference/java/util/Map.html <? extends K, ? extends V> map)
+//public static SortedMap /reference/java/util/SortedMap.html <K, V> unmodifiableSortedMap (SortedMap /reference/java/util/SortedMap.html <K, ? extends V> map)
+//public Map /reference/java/util/Map.html <String /reference/java/lang/String.html , List /reference/java/util/List.html <String /reference/java/lang/String.html >> getHeaderFields ()
