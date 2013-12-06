@@ -22,7 +22,9 @@ keyword Keywords
 	| "synchronized"
 	;
 
-lexical Iden = [a-zA-Z/\\.\[\]0-9_?]+ !>> [a-zA-Z/\\.\[\]0-9_?] \ Keywords;
+lexical Iden = [a-zA-Z\\.\[\]0-9_?]+ !>> [a-zA-Z\\.\[\]0-9_?] \ Keywords;
+
+lexical Link = [a-zA-Z/\\.\[\]0-9_?]+ !>> [a-zA-Z/\\.\[\]0-9_?] \ Keywords;
 
 lexical Modifiers
 	= "static"
@@ -39,29 +41,11 @@ lexical TypeCategory
 	= "class"
 	| "interface"
 	| "enum"
-	| "@interface" //weeiiirrdd (http://developer.android.com/reference/java/lang/Deprecated.html)
-	;
-	
-syntax TypeDef
-	= \type: Modifiers+ TypeCategory Iden ExtendsClause? ImplementsClause?
-	;
-  
-//will be of the form Object reference/linktoObject.html <E extends <>> || <K,V>?
-syntax ExtendsClause 
-	= extends: "extends" IdenLink+
+	| "@interface" // see http://developer.android.com/reference/java/lang/Deprecated.html
 	;
 
-syntax ImplementsClause 
-	= implements: "implements" IdenLink+
-	;
-
-syntax IdenLink
-	= link: Iden Iden Generic?
-	;
- 
-syntax Generic
-	= "\<" Iden ExtendsClause "\>"
-	| "\<" {Iden ","}* "\>"
+syntax ClassDef
+	= class: Modifiers+ TypeCategory Iden ExtendsClause? ImplementsClause?
 	;
 
 syntax ConstructDef
@@ -70,27 +54,31 @@ syntax ConstructDef
 	| constructor: Modifiers+ Iden "(" Params ")"
 	;
 
+syntax ExtendsClause
+	= extends: "extends" Type
+	;
+
+syntax ImplementsClause
+	= implements: "implements" Type+
+	;
+
+syntax SuperClause
+	= super: "super" Type
+	;
+
 syntax NestedGeneric
-	= "\<" {Generic2 ","}* "\>"
+	= "\<" {Generic ","}* "\>"
 	;
 
-syntax Generic2
+syntax Generic
 	= simpleGeneric: Type
-	| extendsGeneric: Type ExtendsClause2
-	| superGeneric: Type SuperClause2
-	;
-
-syntax ExtendsClause2
-	= "extends" Type
-	;
-
-syntax SuperClause2
-	= "super" Type
+	| extendsGeneric: Type ExtendsClause
+	| superGeneric: Type SuperClause
 	;
 
 syntax Type
 	= withoutLink: Iden NestedGeneric?
-	| withLink: Iden Iden NestedGeneric?
+	| withLink: Iden Link NestedGeneric?
 	;
 
 syntax Params
@@ -103,7 +91,7 @@ syntax Param
 
 public node parseClassSignatureToAST(str classSignature) {
 	println(classSignature);
-	node ast = implode(#node, parse(#TypeDef, classSignature));
+	node ast = implode(#node, parse(#ClassDef, classSignature));
 	return ast;
 }
 
@@ -114,15 +102,18 @@ public node parseConstructSignatureToAST(str methodSignature) {
 }
 
 public node parseConstructSignatureToAST() {
- 	node ast = implode(#node, parse(#ConstructDef, |project://HtmlScraper/src/test.txt|));
+ 	node ast = implode(#node, parse(#ClassDef, |project://HtmlScraper/src/test.txt|));
     return ast;
 }
 
-//public static AtomicReferenceFieldUpdater /reference/java/util/concurrent/atomic/AtomicReferenceFieldUpdater.html <U, W> newUpdater (Class /reference/java/lang/Class.html <U> tclass, Class /reference/java/lang/Class.html <W> vclass, String /reference/java/lang/String.html  fieldName)
-//public T execute (HttpUriRequest /reference/org/apache/http/client/methods/HttpUriRequest.html  request, ResponseHandler /reference/org/apache/http/client/ResponseHandler.html <? extends T> responseHandler, HttpContext /reference/org/apache/http/protocol/HttpContext.html  context)
-//public Set /reference/java/util/Set.html <String /reference/java/lang/String.html > getExtendedKeyUsage ()
-//public Collection /reference/java/util/Collection.html <List /reference/java/util/List.html <?>> getPathToNames ()
-//public abstract int drainTo (Collection /reference/java/util/Collection.html <? super E> c)
-//public void putAll (Map /reference/java/util/Map.html <? extends K, ? extends V> map)
-//public static SortedMap /reference/java/util/SortedMap.html <K, V> unmodifiableSortedMap (SortedMap /reference/java/util/SortedMap.html <K, ? extends V> map)
-//public Map /reference/java/util/Map.html <String /reference/java/lang/String.html , List /reference/java/util/List.html <String /reference/java/lang/String.html >> getHeaderFields ()
+/*
+  Method signatures for testing:
+   public static AtomicReferenceFieldUpdater /reference/java/util/concurrent/atomic/AtomicReferenceFieldUpdater.html <U, W> newUpdater (Class /reference/java/lang/Class.html <U> tclass, Class /reference/java/lang/Class.html <W> vclass, String /reference/java/lang/String.html  fieldName)
+   public T execute (HttpUriRequest /reference/org/apache/http/client/methods/HttpUriRequest.html  request, ResponseHandler /reference/org/apache/http/client/ResponseHandler.html <? extends T> responseHandler, HttpContext /reference/org/apache/http/protocol/HttpContext.html  context)
+   public Set /reference/java/util/Set.html <String /reference/java/lang/String.html > getExtendedKeyUsage ()
+   public Collection /reference/java/util/Collection.html <List /reference/java/util/List.html <?>> getPathToNames ()
+   public abstract int drainTo (Collection /reference/java/util/Collection.html <? super E> c)
+   public void putAll (Map /reference/java/util/Map.html <? extends K, ? extends V> map)
+   public static SortedMap /reference/java/util/SortedMap.html <K, V> unmodifiableSortedMap (SortedMap /reference/java/util/SortedMap.html <K, ? extends V> map)
+   public Map /reference/java/util/Map.html <String /reference/java/lang/String.html , List /reference/java/util/List.html <String /reference/java/lang/String.html >> getHeaderFields ()
+*/

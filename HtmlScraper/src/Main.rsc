@@ -506,7 +506,7 @@ public bool isClassDeprecated(node classHtml) {
 
 public str getClassName(node ast) {
 	visit(ast) {
-		case "type"(_,_,name,_,_): {
+		case "class"(_,_,name,_,_): {
 			return name;
 		}
 	}
@@ -514,7 +514,7 @@ public str getClassName(node ast) {
 
 public str getClassType(node ast) {
 	visit(ast) {
-		case "type"(_,classType,_,_,_): {
+		case "class"(_,classType,_,_,_): {
 			return classType;
 		}
 	}
@@ -564,7 +564,7 @@ public list[Type] getClassInterfaces(node ast) {
 
 public list[str] getClassModifiers(node ast) {
 	visit(ast) {
-		case "type"(modifiers,_,_,_,_): {
+		case "class"(modifiers,_,_,_,_): {
 			return modifiers;
 		}
 	}
