@@ -5,7 +5,8 @@ import IO;
 import Set;
 import List;
 
-data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \array(Type arrayType);
+data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \type(str packageName, str typeName, list[Generic] generics) | \typeParameter(str typeParameterName) | \array(Type arrayType);
+data Generic = simpleGeneric(Type genericType) | extendsGeneric(Type baseType, Type extendsType) | superGeneric(Type baseType, Type superType);
 data Class = class(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, bool isDeprecated, list[ConstantField] constantsAndFields, list[Constructor] constructors, list[Method] methods, list[Class] nestedClasses);
 data Method = method(str name, str modifiers, Type returnType, list[Argument] arguments);
 data ConstantField = constantField(str name, str modifiers, Type constantType);
@@ -141,7 +142,21 @@ private str printType(Type aType) {
 		case \void(): return "void";
 		case \primitive(str typeName): return typeName;
 		case \type(str packageName, str typeName): return typeName;
+		case \type(str packageName, str typeName, list[Generic] generics): return "<typeName>\<<printGenerics(generics)>\>";
+		case \typeParameter(str typeParameterName): return typeParameterName;
 		case \array(Type arrayType): return printType(arrayType) + "[]";
+	}
+}
+
+private str printGenerics(list[Generic] generics) {
+	return intercalate(", ", [printGeneric(generic) | generic <- generics]);
+}
+
+private str printGeneric(Generic generic) {
+	switch (generic) {
+		case simpleGeneric(Type genericType): return "<printType(genericType)>";
+		case extendsGeneric(Type baseType, Type extendsType): return "<printType(baseType)> extends <printType(extendsType)>";
+		case superGeneric(Type baseType, Type superType): return "<printType(genericType)> super <printType(superType)>";
 	}
 }
 
