@@ -13,6 +13,7 @@ import Template;
 import ParseTree;
 import SignatureParser;
 import util::Benchmark;
+import Main;
 
 anno str node@id;
 anno str node@href;
@@ -33,8 +34,9 @@ public void smain(int startAtClassNo)
 				case alink:"a"(content):{
 					println("classNo: <count>");
 					if(count >= startAtClassNo){ //skip if we have already seen it
-						println(|http://developer.android.com/<alink@href>|);
-						extractClassSig(readHTMLFile(|http://developer.android.com/<alink@href>|));
+						println("CLASS + <|http://developer.android.com/<alink@href>|>");
+						//parseClassSignatureToAST(extractClassSig(readHTMLFile(|http://developer.android.com/<alink@href>|)));
+						extractMethodSigs(extractMethodSig(readHTMLFile(|http://developer.android.com/<alink@href>|)));
 					}
 					count += 1;
 				}
@@ -42,8 +44,8 @@ public void smain(int startAtClassNo)
 		} 
 	}
 	println("parsed <count> classes )"); //YEAH now we know how many classes there are :D!
-}
-public void extractClassSig(node html) {
+} //api levels inner classes
+public str extractClassSig(node html) {
 	str class_sig = "";
 	visit(html) {
 		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header") {
@@ -55,4 +57,40 @@ public void extractClassSig(node html) {
 			}
 		}
 	}	 
+	return trim(class_sig);
+}
+
+
+public void extractMethodSigs(list[list[node]] methods)
+{
+	//println(methods);
+	//println("hier");
+	for(m <- methods){
+		println("METHOD");
+		//println("hier");
+		//println(m);
+		str b = getConstructSignature(m);
+		println(b); 
+		parseConstructSignatureToAST(b);
+	}
+	
+
+}
+
+public list[list[node]] extractMethodSig(node html){ 
+
+	list[list[node]] methods = [];
+	visit(html){
+	case div:"div"(divMethod): if(/jd-details / := (div@class ? "")) {
+			int constructApiLevel = 0;
+			visit(divMethod) {
+				case header:"h4"(h4Content): if ((header@class ? "" ) == "jd-details-title") {
+					methods += [h4Content];
+				}
+			}
+		}
+	}
+	
+	//text(methods);
+	return methods;
 }
