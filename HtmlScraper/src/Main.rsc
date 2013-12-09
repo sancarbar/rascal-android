@@ -61,10 +61,9 @@ public void buildProject(int apiLevel) {
 }
 
 
-public void testBuild(){
+public void testBuild(int apiLevel){
 	loc url = |http://developer.android.com/reference/android/R.html|;
 	str packagePath = "android";
-	int apiLevel = 11;
 	buildClass(url, packagePath, apiLevel);
 
 }
@@ -74,8 +73,9 @@ public void buildClass(loc url, str packagePath, int apiLevel) {
 	list[Class] nestedClasses = [];
 	for(nestedClassUrl <- getNestedClasses(url)){
 		nestedClass = getClass(nestedClassUrl, packagePath, apiLevel, acceptNestedClass = true);
-		if (nestedClass is just)
-			nestedClasses += nestedClass.val; 
+		if (nestedClass is just && getClassAPI(nestedClassUrl) <= apiLevel){
+			nestedClasses += nestedClass.val;
+		} 
 	}
 	
 	if (maybeClass is just) {
