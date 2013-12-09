@@ -59,7 +59,7 @@ syntax ExtendsClause
 	;
 
 syntax ImplementsClause
-	= implements: "implements" Type+
+	= implements: "implements" {Type " "}+
 	;
 
 syntax SuperClause
