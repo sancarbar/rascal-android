@@ -24,7 +24,7 @@ keyword Keywords
 
 lexical Iden = [a-zA-Z\\.\[\]0-9_?]+ !>> [a-zA-Z\\.\[\]0-9_?] \ Keywords;
 
-lexical Link = [a-zA-Z/\\.\[\]0-9_?]+ !>> [a-zA-Z/\\.\[\]0-9_?] \ Keywords;
+lexical Link = [/] [a-zA-Z/\\.\[\]0-9_?]+ !>> [a-zA-Z/\\.\[\]0-9_?] \ Keywords;
 
 lexical Modifiers
 	= "static"
@@ -59,7 +59,7 @@ syntax ExtendsClause
 	;
 
 syntax ImplementsClause
-	= implements: "implements" {Type " "}+
+	= implements: "implements" Type+
 	;
 
 syntax SuperClause
@@ -107,6 +107,10 @@ public node parseConstructSignatureToAST() {
 }
 
 /*
+  Class signatures for testing:
+   public class PopupMenu extends  Object /reference/java/lang/Object.html implements MenuBuilder.Callback MenuPresenter.Callback
+   public abstract class AbsListView extends  AdapterView /reference/android/widget/AdapterView.html <T extends  Adapter /reference/android/widget/Adapter.html > implements  TextWatcher /reference/android/text/TextWatcher.html   ViewTreeObserver.OnGlobalLayoutListener /reference/android/view/ViewTreeObserver.OnGlobalLayoutListener.html   ViewTreeObserver.OnTouchModeChangeListener /reference/android/view/ViewTreeObserver.OnTouchModeChangeListener.html   Filter.FilterListener /reference/android/widget/Filter.FilterListener.html
+  
   Method signatures for testing:
    public static AtomicReferenceFieldUpdater /reference/java/util/concurrent/atomic/AtomicReferenceFieldUpdater.html <U, W> newUpdater (Class /reference/java/lang/Class.html <U> tclass, Class /reference/java/lang/Class.html <W> vclass, String /reference/java/lang/String.html  fieldName)
    public T execute (HttpUriRequest /reference/org/apache/http/client/methods/HttpUriRequest.html  request, ResponseHandler /reference/org/apache/http/client/ResponseHandler.html <? extends T> responseHandler, HttpContext /reference/org/apache/http/protocol/HttpContext.html  context)
