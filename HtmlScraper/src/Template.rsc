@@ -30,59 +30,59 @@ public str getFileName(str name, str ext){
 
 // Helper function to generate a class
 public str genClass(str packageName, Class class, bool isNestedClass = false) {
-  return
-  	"
-  	'<if (!isNestedClass) {>
-  	'package <packageName>;
-  	'
-  	'<genImports(class.methods, class.superClass, class.interfaces, class.constantsAndFields, class.constructors)>
-    '<}>
-	'<if (class.isDeprecated) {>@Deprecated<}>
-    '<class.modifiers> <class.classType> <class.name><genExtend(class.superClass)><genImplements(class.interfaces)> {
-    '<for (constant <- class.constantsAndFields) {>
-    	'<genConstant(constant)>
-    '<}>
-    '<for (constructor <- class.constructors) {>
-    	'<genConstructor(constructor)>
-    '<}>
-    '<for (method <- class.methods) {>
-    	'<genMethod(method)>
-    '<}>
-    '<for (nestedClass <- class.nestedClasses) {>
-    	'<genClass(packageName, nestedClass, isNestedClass = true)>
-    '<}>
-    '}";
+	list[Type] types = getTypes(class.methods, class.superClass, class.interfaces, class.constantsAndFields, class.constructors);
+	return
+	  	"
+	  	'<if (!isNestedClass) {>
+	  	'package <packageName>;
+	  	'
+	  	'<genImports(types)>
+	    '<}>
+		'<if (class.isDeprecated) {>@Deprecated<}>
+	    '<class.modifiers> <class.classType> <class.name><genTypeParameters(types)><genExtend(class.superClass)><genImplements(class.interfaces)> {
+	    '<for (constant <- class.constantsAndFields) {>
+	    	'<genConstant(constant)>
+	    '<}>
+	    '<for (constructor <- class.constructors) {>
+	    	'<genConstructor(constructor)>
+	    '<}>
+	    '<for (method <- class.methods) {>
+	    	'<genMethod(method)>
+	    '<}>
+	    '<for (nestedClass <- class.nestedClasses) {>
+	    	'<genClass(packageName, nestedClass, isNestedClass = true)>
+	    '<}>
+	    '}";
 }
 
-// Helper function to generate the imports
-private str genImports(list[Method] methods, Type superClass, list[Type] interfaces, list[ConstantField] constants, list[Constructor] constructors) {
-	set[str] imports = {};
-	if (superClass is \type){
-		imports += genImport(superClass);
-	}
-	for (interface <- interfaces, interface is \type){
-		imports += genImport(interface);
-	}
+private list[Type] getTypes(list[Method] methods, Type superClass, list[Type] interfaces, list[ConstantField] constants, list[Constructor] constructors) {
+	list[Type] types = [];
+	types += superClass;
+	types += interfaces;
 	for (method <- methods) {
-		if (method.returnType is \type) {
-			imports += genImport(method.returnType);
-		}
-		for (argument <- method.arguments, argument.argType is \type) {
-			imports += genImport(argument.argType);
+		types += method.returnType;
+		for (argument <- method.arguments) {
+			types += argument.argType;
 		}
 	}
 	for (constant <- constants) {
-		if (constant.constantType is \type) {
-			imports += genImport(constant.constantType);
-		}
+		types += constant.constantType;
 	}
 	for (constructor <- constructors) {
-		for (arg <- constructor.arguments, arg.argType is \type) {
-			imports += genImport(arg.argType);
+		for (arg <- constructor.arguments) {
+			types += arg.argType;
 		}
 	}
-	
-	return intercalate("\n", toList(imports));
+	return types;
+}
+
+// Helper function to generate the imports
+private str genImports(list[Type] types) = intercalate("\n", dup([ genImport(aType) | aType <- types, aType is \type ]));
+
+// Helper function to generate the type parameters
+private str genTypeParameters(list[Type] types) {
+	list[str] typeParameters = dup([ aType.typeParameterName | aType <- types, aType is \typeParameter ]);
+	return size(typeParameters) > 0 ? "\<<intercalate(",", typeParameters)>\>" : "";
 }
 
 // Helper function to generate an import
