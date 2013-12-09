@@ -114,8 +114,8 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 	// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
 	if (classType == "interface") {
 		if (!isEmpty(classInterfaces)) {
-			superClass = head(classInterfaces);
-			interfaces = [];
+			classSuperClass = head(classInterfaces);
+			classInterfaces = [];
 		}
 	}
 
@@ -486,7 +486,7 @@ default list[Generic] getNestedGeneric(NestedGeneric g) { throw "You forgot a ca
 
 Generic getGeneric((Generic)`<Type t>`) = \simpleGeneric(getType(t));
 Generic getGeneric((Generic)`<Type t> <ExtendsClause e>`) = \extendsGeneric(getType(t), getExtendsClause(e));
-Generic getGeneric((Generic)`<Type t> <SuperClause s>`) = \superGeneric(getType(t), getType(s));
+Generic getGeneric((Generic)`<Type t> <SuperClause s>`) = \superGeneric(getType(t), getSuperClause(s));
 default Generic getGeneric(Generic g) { throw "You forgot a case for <g>"; }
 
 Type getSuperClause((SuperClause)`super <Type t>`) = getType(t);

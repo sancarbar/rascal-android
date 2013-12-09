@@ -166,7 +166,7 @@ private str printGeneric(Generic generic) {
 	switch (generic) {
 		case simpleGeneric(Type genericType): return "<printType(genericType)>";
 		case extendsGeneric(Type baseType, Type extendsType): return "<printType(baseType)> extends <printType(extendsType)>";
-		case superGeneric(Type baseType, Type superType): return "<printType(genericType)> super <printType(superType)>";
+		case superGeneric(Type baseType, Type superType): return "<printType(baseType)> super <printType(superType)>";
 	}
 }
 
