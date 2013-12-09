@@ -10,7 +10,7 @@ data Generic = simpleGeneric(Type genericType) | extendsGeneric(Type baseType, T
 data Class = class(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, bool isDeprecated, list[ConstantField] constantsAndFields, list[Constructor] constructors, list[Method] methods, list[Class] nestedClasses);
 data Method = method(str name, str modifiers, Type returnType, list[Argument] arguments);
 data ConstantField = constantField(str name, str modifiers, Type constantType);
-data Constructor = constructor(str signature, list[Argument] arguments);
+data Constructor = constructor(str name, str modifiers, list[Argument] arguments);
 data Argument = argument(str name, Type argType);
 
 // Creates Java file
@@ -43,10 +43,10 @@ public str genClass(str packageName, Class class, bool isNestedClass = false) {
     	'<genConstant(constant)>
     '<}>
     '<for (constructor <- class.constructors) {>
-    	'<genConstructor(constructor.signature)>
+    	'<genConstructor(constructor)>
     '<}>
     '<for (method <- class.methods) {>
-    	'<genMethod(method.name, method.modifiers, method.returnType, method.arguments)>
+    	'<genMethod(method)>
     '<}>
     '<for (nestedClass <- class.nestedClasses) {>
     	'<genClass(packageName, nestedClass, isNestedClass = true)>
@@ -57,10 +57,10 @@ public str genClass(str packageName, Class class, bool isNestedClass = false) {
 // Helper function to generate the imports
 private str genImports(list[Method] methods, Type superClass, list[Type] interfaces, list[ConstantField] constants, list[Constructor] constructors) {
 	set[str] imports = {};
-	if(superClass is \type){
+	if (superClass is \type){
 		imports += genImport(superClass);
 	}
-	for(interface <- interfaces, interface is \type){
+	for (interface <- interfaces, interface is \type){
 		imports += genImport(interface);
 	}
 	for (method <- methods) {
@@ -76,7 +76,7 @@ private str genImports(list[Method] methods, Type superClass, list[Type] interfa
 			imports += genImport(constant.constantType);
 		}
 	}
-	for(constructor <- constructors) {
+	for (constructor <- constructors) {
 		for (arg <- constructor.arguments, arg.argType is \type) {
 			imports += genImport(arg.argType);
 		}
@@ -86,42 +86,52 @@ private str genImports(list[Method] methods, Type superClass, list[Type] interfa
 }
 
 // Helper function to generate an import
-private str genImport(\type(str packageName, _)) {
-	return "import <packageName>;";
-}
+private str genImport(\type(str packageName, _)) = "import <packageName>;";
+private str genImport(\type(str packageName, _, _)) = "import <packageName>;";
 
 // Helper functions to generate an extend
 private str genExtend(\type(_, str typeName)) {
 	return " extends <typeName>";
 }
+private str genExtend(\type(_, str typeName, list[Generic] generics)) {
+	return " extends <typeName>\<<printGenerics(generics)>\>";
+}
 private str genExtend(noExtend){ 
 	return "";
 }
 
-public str genConstant(ConstantField constant) {
-	return "\t<constant.modifiers> <printType(constant.constantType)> <constant.name> = <getDefaultTypeValue(constant.constantType)>; ";
-}
-
 // Helper function to generate the implements
-private str genImplements(list[Type] interfaces){
+public str genImplements(list[Type] interfaces) {
 	list[str] implements = [];
 	str implementsValue = "";
-	for(interface <- interfaces, interface is \type){
-		implements +=  "<interface.typeName>";
+	for (interface <- interfaces, interface is \type) {
+		implements +=  genImplement(interface);
 	}
-	if(!isEmpty(implements)){
+	if (!isEmpty(implements)){
 		implementsValue = " implements " + intercalate(", ", implements);
 	}
 	return implementsValue;
 }
+private str genImplement(\type(_, str typeName)) {
+	return "<typeName>";
+}
+private str genImplement(\type(_, str typeName, list[Generic] generics)) {
+	return "<typeName>\<<printGenerics(generics)>\>";
+}
 
-private str genConstructor(str signature) {
-	return "\t<signature> {};";
+// Helper functions to generate a constructor
+private str genConstructor(Constructor constructor) {
+	return "\t<constructor.modifiers> <constructor.name>(<genArgumentsString(constructor.arguments)>) {};";
+}
+
+// Helper functions to generate a constant or a field
+public str genConstant(ConstantField constant) {
+	return "\t<constant.modifiers> <printType(constant.constantType)> <constant.name> = <getDefaultTypeValue(constant.constantType)>; ";
 }
 
 // Helper functions to generate a method
-private str genMethod(str name, str modifiers, Type returnType, list[Argument] arguments) {
-	return "\t<modifiers> <printType(returnType)> <name>(<genArgumentsString(arguments)>)<genMethodBody(modifiers, returnType)>;";
+private str genMethod(Method method) {
+	return "\t<method.modifiers> <printType(method.returnType)> <method.name>(<genArgumentsString(method.arguments)>)<genMethodBody(method.modifiers, method.returnType)>;";
 }
 
 private str genMethodBody(str modifiers, Type returnType) {
@@ -178,13 +188,9 @@ private str getDefaultTypeValue(Type constructType) {
 				default: return "0";
 			}
 		}
-		case \type(str packageName, str typeName): return "null";
-		case \array(Type arrayType): return "null";
+		case \type(_, _): return "null";
+		case \type(_, _, _): return "null";
+		case \typeParameter(_): return "null";
+		case \array(_): return "null";
 	}
 }
-
-
-//Examples:
-//createClassFile("com/test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.lang.String", "String")>]>, <"isCool", \primitive("boolean"), []>]);
-//createClassFile("com/test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.lang.String", "String")>]>, <"isCool", \primitive("boolean"), []>], superClass = \type("java.util.ArrayList", "ArrayList"), interfaces = [\type("java.util.List", "List")]);
-//println(genClass("com/test","Test", [<"method1", \type("java.util.List", "List"), [<"getItems", \primitive("int")>, <"isTrue", \primitive("boolean")>]>, <"setSomething", \void(), [<"something", \type("java.lang.String", "String")>]>, <"isCool", \primitive("boolean"), []>], \type("Somthing", "extendingClass"), [\type("Somthing", "extendingClass")]));

@@ -49,9 +49,9 @@ syntax ClassDef
 	;
 
 syntax ConstructDef
-	= method: Modifiers+ Type Iden "(" Params ")"
+	= method: Modifiers+ Type Iden "(" Arguments ")"
 	| constantOrField: Modifiers+ Type Iden
-	| constructor: Modifiers+ Iden "(" Params ")"
+	| constructor: Modifiers+ Iden "(" Arguments ")"
 	;
 
 syntax ExtendsClause
@@ -81,25 +81,13 @@ syntax Type
 	| withLink: Iden Link NestedGeneric?
 	;
 
-syntax Params
-	= params: {Param ","}*
+syntax Arguments
+	= arguments: {Argument ","}*
 	;
 
-syntax Param
+syntax Argument
 	= Type Iden
 	;
-
-public node parseClassSignatureToAST(str classSignature) {
-	println(classSignature);
-	node ast = implode(#node, parse(#ClassDef, classSignature));
-	return ast;
-}
-
-public node parseConstructSignatureToAST(str methodSignature) {
-	println(methodSignature);
-	node ast = implode(#node, parse(#ConstructDef, methodSignature));
-    return ast;
-}
 
 public node parseConstructSignatureToAST() {
  	node ast = implode(#node, parse(#ClassDef, |project://HtmlScraper/src/test.txt|));

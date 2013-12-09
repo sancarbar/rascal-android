@@ -12,7 +12,7 @@ import SignatureParser;
 import util::Maybe;
 import DateTime;
 
-//annotations
+// Annotations
 anno str node@id;
 anno str node@href;
 anno str node@class;
@@ -88,34 +88,37 @@ public void buildClass(loc url, str packagePath, int apiLevel) {
 private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool acceptNestedClass = false) {
 	node classHtml = readHTMLFile(url);
 	map[str, list[list[node]]] classConstructs = getClassConstructs(classHtml, apiLevel);
-	str classSignature = extractClassSig(classHtml);
+	str classSignature = getClassSignature(classHtml);
 	bool isDeprecated = isClassDeprecated(classHtml);
-	node classSignatureAst = parseClassSignatureToAST(classSignature);
-	str classType = getClassType(classSignatureAst);
-	str name = getClassName(classSignatureAst);
-	//check for innerclasses
+	classAst = parse(#ClassDef, classSignature);
+	str className = getClassName(classAst);
+	str classModifiers = getClassModifiers(classAst);
+	str classType = getClassTypeCategory(classAst);
+	Type classSuperClass = getClassSuperClass(classAst);
+	list[Type] classInterfaces = getClassInterfaces(classAst);
 	
-	if(contains(name, ".")){
-		if(acceptNestedClass)
-			name = substring(name, findFirst(name, ".") + 1, size(name));
-		else
-			return nothing();
-	}
-	str modifiers = intercalate(" ", getClassModifiers(classSignatureAst));
-	Type superClass = getClassSuperClass(classSignatureAst);
-	list[Type] interfaces = getClassInterfaces(classSignatureAst);
 	list[Constructor] constructors = getConstructors(classConstructs["constructors"]);
 	list[ConstantField] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
 	list[Method] methods = getMethods(classConstructs["methods"]);
 
+	// Check for innerclasses
+	if(contains(className, ".")) {
+		if (acceptNestedClass) {
+			name = substring(className, findFirst(className, ".") + 1, size(className));
+		} else {
+			return nothing();
+		}
+	}
+
 	// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
 	if (classType == "interface") {
-		if (!isEmpty(interfaces)) {
-			superClass = head(interfaces);
+		if (!isEmpty(classInterfaces)) {
+			superClass = head(classInterfaces);
 			interfaces = [];
 		}
 	}
-	return just(class(packagePath, classType, name, modifiers, superClass, interfaces, isDeprecated, constantsAndFields, constructors, methods, []));
+
+	return just(class(packagePath, classType, className, classModifiers, classSuperClass, classInterfaces, isDeprecated, constantsAndFields, constructors, methods, []));
 }
 
 // Parses the constructors and returns them in the needed type for creating the templates
@@ -124,15 +127,11 @@ public list[Constructor] getConstructors(list[list[node]] constructorNodes) {
 	// Get constructors
 	for(constructorNode <- constructorNodes){
 		str constructorSignature = getConstructSignature(constructorNode);
-		list[str] argumentSignatures = getConstructArgumentSignatures(constructorSignature);
-		// Get arguments of constructor
-		list[Argument] arguments = [];
-		for (argumentSignature <- argumentSignatures) {
-			str argumentName = getConstructName(argumentSignature);
-			Type argumentType = getConstructType(argumentName, argumentSignature, constructorNode);
-			arguments += argument(argumentName, argumentType);
-		}
-		constructors += constructor(constructorSignature, arguments);
+		constructorAst = parse(#ConstructDef, constructorSignature);
+		str constructorName = getConstructName(constructorAst);
+		str constructorModifiers = getConstructModifiers(constructorAst);
+		list[Argument] constuctorArguments = getConstructArguments(constructorAst);
+		constructors += constructor(constructorName, constructorModifiers, constuctorArguments);
 	}
 	return constructors;
 }
@@ -143,10 +142,10 @@ public list[ConstantField] getConstantsAndFields(list[list[node]] constantsAndFi
 	// Get constants and fields
 	for(constantOrFieldNode <- constantsAndFieldsNodes){
 		str constantSignature = getConstructSignature(constantOrFieldNode);
-		node constantAst = parseConstructSignatureToAST(constantSignature);
-		str constantName = getConstructName1(constantAst); //getConstructName(constantSignature);
-		str constantModifiers =  getConstructModifiers1(constantAst); //getConstructModifiers(constantSignature);
-		Type contantType = getConstructType(constantName, constantSignature, constantOrFieldNode);
+		constantAst = parse(#ConstructDef, constantSignature);
+		str constantName = getConstructName(constantAst);
+		str constantModifiers =  getConstructModifiers(constantAst);
+		Type contantType = getConstructType(constantAst);
 		constantsAndFields += constantField(constantName, constantModifiers, contantType);
 	}
 	return constantsAndFields;
@@ -157,22 +156,13 @@ public list[Method] getMethods(list[list[node]] methodNodes) {
 	list[Method] methods = [];
 	// Get methods
 	for(methodNode <- methodNodes) {
-		str methodSignature = getConstructSignature1(methodNode);
-		node methodAst = parseConstructSignatureToAST(methodSignature);
-		str methodName = getConstructName1(methodAst); //getConstructName(methodSignature);
-		str methodModifiers = getConstructModifiers1(methodAst); //getConstructModifiers(methodSignature);
-		Type methodReturnType = getConstructType(methodName, methodSignature, methodNode);
-		list[str] argumentSignatures = getConstructArgumentSignatures(methodSignature);
-
-		// Get arguments of method
-		list[Argument] arguments = [];
-		for (argumentSignature <- argumentSignatures) {
-			str argumentName = getConstructName(argumentSignature);
-			Type argumentType = getConstructType(argumentName, argumentSignature, methodNode);
-			arguments += argument(argumentName, argumentType);
-		}
-
-		methods += method(methodName, methodModifiers, methodReturnType, arguments);
+		str methodSignature = getConstructSignature(methodNode);
+		methodAst = parse(#ConstructDef, methodSignature);
+		str methodName = getConstructName(methodAst);
+		str methodModifiers = getConstructModifiers(methodAst);
+		Type methodReturnType = getConstructType(methodAst);
+		list[Argument] methodArguments = getConstructArguments(methodAst);
+		methods += method(methodName, methodModifiers, methodReturnType, methodArguments);
 	}
 	return methods;
 }
@@ -387,97 +377,12 @@ public map[str, list[list[node]]] getClassConstructs(node classHtml, int apiLeve
 	return classConstructs;
 }
 
-public str getConstructSignature(list[node] constructNodes) {
-	str signature = "";
-	visit (constructNodes) {
-		case text:"text"(partOfSignature): signature += partOfSignature;
-	}
-	return signature;
-}
-
-public str getConstructSignature1(list[node] constructNodes) {
-	str signature = "";
-	visit (constructNodes) {
-		case text:"text"(partOfSignature): signature += partOfSignature;
-		case alink:"a"(linkToTypes): if ((alink@href ? "") != "") signature += " " + alink@href + " ";
-	}
-	println(signature);
-	return signature;
-}
-
-public str getConstructName(str constructSignature) {
-	str name = "";
-	if (/(public|private|protected|static|abstract|final|\s)*[a-zA-Z0-9_\-\.\[\]]*\s*<constructName:[a-zA-Z0-9_\-]*>/ := constructSignature) {
-		name = constructName;
-	}
-	return name;
-}
-
-public str getConstructName1(node methodAst) {
-	visit(methodAst) {
-		case "method"(modifiers, constructType, name, params): return name;
-		case "constantOrField"(modifiers, constructType, name): return name;
-		case "constructor"(modifiers, name, params): return name;
-	}
-}
-
-public str getConstructModifiers(str constructSignature) {
-	str modifiers = "";
-	if (/<modifierNames:(public|private|protected|static|abstract|final|\s)*>/ := constructSignature) {
-		modifiers = modifierNames;
-	}
-	return modifiers;
-}
-
-public str getConstructModifiers1(node methodAst) {
-	visit(methodAst) {
-		case "method"(modifiers, constructType, name, params): return intercalate(" ", modifiers);
-		case "constantOrField"(modifiers, constructType, name): return intercalate(" ", modifiers);
-		case "constructor"(modifiers, name, params): return intercalate(" ", modifiers);
-	}
-}
-
-public Type getConstructType(str constructName, str constructSignature, list[node] constructNodes) {
-	str typeName = "";
-	if (/<constructTypeName:[a-zA-Z0-9_\-\.\[\]]*>\s*<constructName>/ := constructSignature) {
-		typeName = constructTypeName;
-	}
-	Type constructType = getTypeFromString(typeName);
-
-	if (constructType is \type) {
-		visit(constructNodes) {
-			case aLink:"a"(aContent): if((aLink@href ? "") != "") {
-				visit(aContent) {
-					case aText:"text"(textContent): {
-						return getTypeFromUrl(aLink@href); // return is necessary! The first link & text found is the one we need.
-					}
-				}
-			}
-		}
-	}
-	return constructType;
-}
-
-//public str getMethodReturnType(node methodAst) {
-//	visit(methodAst) {
-//		case "method"(modifiers, constructType, name, params): return constructType;
-//		case "constantOrField"(modifiers, constructType, name): return constructType;
-//	}
-//}
-
-public list[str] getConstructArgumentSignatures(str constructSignature) {
-	if (/\(<params:.*>\)/ := constructSignature) {
-		return [ trim(param) | param <- split(",", params), !isEmpty(trim(param)) ];
-	}
-}
-
-public str extractClassSig(node classHtml) {
+public str getClassSignature(node classHtml) {
 	str class_sig = "";
 	visit(classHtml) {
 		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header") {
-			//text(div_class_sig);
 			visit(div_class_sig) {
-				case text:"text"(text_content) :{ class_sig += text_content + " "; }//println(class_sig);}
+				case text:"text"(text_content) :{ class_sig += text_content + " "; }
 				case alink:"a"(a_content) :if((alink@href ? "") != "") {
 					class_sig += alink@href + " ";
 				}
@@ -486,6 +391,112 @@ public str extractClassSig(node classHtml) {
 	}
 	return trim(class_sig);
 }
+
+public str getClassName(ClassDef classDef) {
+	visit (classDef) {
+		case (ClassDef)`<Modifiers+ _> <TypeCategory _> <Iden i> <ExtendsClause? _> <ImplementsClause? _>`: return "<i>";
+	}
+}
+
+public str getClassModifiers(ClassDef classDef) {
+	visit (classDef) {
+		case (ClassDef)`<Modifiers+ m> <TypeCategory _> <Iden i> <ExtendsClause? _> <ImplementsClause? _>`: return "<m>";
+	}
+}
+
+public str getClassTypeCategory(ClassDef classDef) {
+	visit (classDef) {
+		case (ClassDef)`<Modifiers+ _> <TypeCategory t> <Iden i> <ExtendsClause? _> <ImplementsClause? _>`: return "<t>";
+	}
+}
+
+public Type getClassSuperClass(ClassDef classDef) {
+	visit (classDef) {
+		case (ClassDef)`<Modifiers+ _> <TypeCategory t> <Iden i> <ImplementsClause? _>`: return \void();
+		case (ClassDef)`<Modifiers+ _> <TypeCategory t> <Iden i> <ExtendsClause e> <ImplementsClause? _>`: return getExtendsClause(e);
+	}
+}
+
+Type getExtendsClause((ExtendsClause)`extends <Type t>`) = getType(t);
+default Type getExtendsClause(ExtendsClause e) { throw "You forgot a case for <e>"; }
+
+public list[Type] getClassInterfaces(ClassDef classDef) {
+	visit (classDef) {
+		case (ClassDef)`<Modifiers+ _> <TypeCategory t> <Iden i> <ExtendsClause? _>`: return [];
+		case (ClassDef)`<Modifiers+ _> <TypeCategory t> <Iden i> <ExtendsClause? _> <ImplementsClause i>`: return getImplementsClause(i);
+	}
+}
+
+list[Type] getImplementsClause((ImplementsClause)`implements <Type+ ts>`) = [ getType(t) | t <- ts ];
+default list[Type] getImplementsClause(ImplementsClause i) { throw "You forgot a case for <i>"; }
+
+public str getConstructSignature(list[node] constructNodes) {
+	str signature = "";
+	visit (constructNodes) {
+		case text:"text"(partOfSignature): signature += partOfSignature;
+		case alink:"a"(linkToTypes): if ((alink@href ? "") != "") signature += " " + alink@href + " ";
+	}
+	return signature;
+}
+
+public str getConstructName(ConstructDef constructDef) {
+	visit (constructDef) {
+		case (ConstructDef)`<Modifiers+ _> <Type _> <Iden i> ( <Arguments _> )`: return "<i>";
+		case (ConstructDef)`<Modifiers+ _> <Type _> <Iden i>`: return "<i>";
+		case (ConstructDef)`<Modifiers+ _> <Iden i> ( <Arguments _> )`: return "<i>";
+	}
+}
+
+public str getConstructModifiers(ConstructDef constructDef) {
+	visit (constructDef) {
+		case (ConstructDef)`<Modifiers+ m> <Type _> <Iden _> ( <Arguments _> )`: return "<m>";
+		case (ConstructDef)`<Modifiers+ m> <Type _> <Iden _>`: return "<m>";
+		case (ConstructDef)`<Modifiers+ m> <Iden _> ( <Arguments _> )`: return "<m>";
+	}
+}
+
+public Type getConstructType(ConstructDef constructDef) {
+	println(constructDef);
+	visit (constructDef) {
+		case (ConstructDef)`<Modifiers+ _> <Type t> <Iden _> ( <Arguments _> )`: return getType(t);
+		case (ConstructDef)`<Modifiers+ _> <Type t> <Iden _>`: return getType(t);
+	}
+}
+
+Type getType((Type)`void`) = \void();
+Type getType((Type)`<Iden i>`) = \array(getType([SignatureParser::Type] b))
+	when /^<b:.*>\[\]$/ := "<i>";
+Type getType((Type)`<Iden i>`) = \typeParameter("<i>")
+	when size("<i>") == 1;
+Type getType((Type)`<Iden i>`) = \primitive("<i>");
+Type getType((Type)`<Iden i> <Link l>`) = \type(getPackageNameFromUrl("<l>"), "<i>");
+Type getType((Type)`<Iden i> <Link l> <NestedGeneric g>`) = \type(getPackageNameFromUrl("<l>"), "<i>", getNestedGeneric(g));
+default Type getType(Type t) { throw "You forgot a case for <t>"; }
+
+list[Generic] getNestedGeneric((NestedGeneric)`\<<{Generic ","}* gs>\>`) = [ getGeneric(g) | g <- gs ];
+default list[Generic] getNestedGeneric(NestedGeneric g) { throw "You forgot a case for <g>"; }
+
+Generic getGeneric((Generic)`<Type t>`) = \simpleGeneric(getType(t));
+Generic getGeneric((Generic)`<Type t> <ExtendsClause e>`) = \extendsGeneric(getType(t), getExtendsClause(e));
+Generic getGeneric((Generic)`<Type t> <SuperClause s>`) = \superGeneric(getType(t), getType(s));
+default Generic getGeneric(Generic g) { throw "You forgot a case for <g>"; }
+
+Type getSuperClause((SuperClause)`super <Type t>`) = getType(t);
+default Type getSuperClause(SuperClause s) { throw "You forgot a case for <s>"; }
+
+
+public list[Argument] getConstructArguments(ConstructDef constructDef) {
+	visit (constructDef) {
+		case (ConstructDef)`<Modifiers+ m> <Type _> <Iden _> ( <Arguments as> )`: return getArguments(as);
+		case (ConstructDef)`<Modifiers+ m> <Iden _> ( <Arguments as> )`: return getArguments(as);
+	}
+}
+
+list[Argument] getArguments((Arguments)`<{Argument ","}* as>`) = [ getArgument(a) | a <- as ];
+default Generic getArguments(Arguments as) { throw "You forgot a case for <as>"; }
+
+Argument getArgument((Argument)`<Type t> <Iden i>`) = argument("<i>", getType(t));
+default Generic getArgument(Argument a) { throw "You forgot a case for <a>"; }
 
 public bool isClassDeprecated(node classHtml) {
 	visit(classHtml) {
@@ -504,92 +515,6 @@ public bool isClassDeprecated(node classHtml) {
 	return false;
 }
 
-public str getClassName(node ast) {
-	visit(ast) {
-		case "class"(_,_,name,_,_): {
-			return name;
-		}
-	}
-}
-
-public str getClassType(node ast) {
-	visit(ast) {
-		case "class"(_,classType,_,_,_): {
-			return classType;
-		}
-	}
-}
-
-public Type getClassSuperClass(node ast) {
-	Type superClass = \void();
-	visit(ast) {
-		case ex:"extends"(l): {
-			visit(l){
-				case "link"(l1,l2,l3): {
-					//println(l);
-					//println("LAYER 1 <l1>  <l2> <l3>");
-					superClass = getTypeFromUrl(l2);
-//					visit(l3){
-//						case "extends"(inpt):{
-//							visit(inpt){
-//								case "link"(e1,e2,e3):{
-//									println("LAYER 2 <e1>  <e2> <e3>");
-//								}
-//							}
-//						}//Enum link < E2 link2 <E>> 
-////"public static final enum Bitmap.Config extends  Enum /reference/java/lang/Enum.html \<E Enum /reference/java/lang/Enum.html \<E\>\>"
-////extends hoofd:type, E: type>\>
-//				//type (enum, enumref) [type(enum, enumref) :  <extends >		
-//					}
-				}
-			}
-		}
-	}
-	return superClass;
-}
-
-public list[Type] getClassInterfaces(node ast) {
-	list[Type] interfaces = [];
-	visit(ast) {
-		case impl:"implements"(im): {
-			visit(im){			
-				case "link"(i1,i2,i3): {
-					interfaces += getTypeFromUrl(i2);
-				}
-			}
-		}
-	}
-	return interfaces;
-}
-
-public list[str] getClassModifiers(node ast) {
-	visit(ast) {
-		case "class"(modifiers,_,_,_,_): {
-			return modifiers;
-		}
-	}
-}
-
-private Type getTypeFromString(str typeName) {
-	if (typeName == "void") {
-		return \void();
-	} else if (endsWith(typeName, "[]")) {
-		return \array(getTypeFromString(substring(typeName, 0, size(typeName) - 2)));
-	} else if (typeName in ["byte", "short", "int", "long", "float", "double", "char", "String", "boolean", "Object", "Class"]) {
-		return \primitive(typeName);
-	} else {
-		return \type("", typeName);
-	}
-}
-
-private Type getTypeFromUrl(str url){
-	return  \type(getPackageNameFromUrl(url), getTypeNameFromUrl(url));
-}
-
 private str getPackageNameFromUrl(str url) {
 	return replaceAll(substring(url, 11, findLast(url, ".")), "/", ".");
-}
-
-private str getTypeNameFromUrl(str url) {
-	return substring(url, findLast(url, "/") + 1, size(url) - 5);
 }
