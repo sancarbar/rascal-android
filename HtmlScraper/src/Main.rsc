@@ -456,7 +456,6 @@ public str getConstructModifiers(ConstructDef constructDef) {
 }
 
 public Type getConstructType(ConstructDef constructDef) {
-	println(constructDef);
 	visit (constructDef) {
 		case (ConstructDef)`<Modifiers+ _> <Type t> <Iden _> ( <Arguments _> )`: return getType(t);
 		case (ConstructDef)`<Modifiers+ _> <Type t> <Iden _>`: return getType(t);
