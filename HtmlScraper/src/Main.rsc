@@ -62,7 +62,8 @@ public void buildProject(int apiLevel) {
 
 
 public void testBuild(int apiLevel){
-	loc url = |http://developer.android.com/reference/android/R.html|;
+	loc url = |http://developer.android.com/reference/android/view/Display.html|;
+	//|http://developer.android.com/reference/android/R.html|;
 	str packagePath = "android";
 	buildClass(url, packagePath, apiLevel);
 
@@ -107,7 +108,6 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 	list[Constructor] constructors = getConstructors(classConstructs["constructors"]);
 	list[ConstantField] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
 	list[Method] methods = getMethods(classConstructs["methods"]);
-
 	// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
 	if (classType == "interface") {
 		if (!isEmpty(interfaces)) {
@@ -357,6 +357,14 @@ public map[str, list[list[node]]] getClassConstructs(node classHtml, int apiLeve
 							}
 							
 						}						
+					}
+				}
+				case deprecated:"p"(deprInfor): if ((deprecated@class ? "" ) == "caution") {
+					visit(deprecated) {
+						case "strong"(["text"(info)]): {
+							int depracatedLevel = toInt(substring(info,findFirst(info, "level ") + 6, findLast(info, ".")));
+							constructNode += "deprecated"(apiLevel < depracatedLevel);
+						}					
 					}
 				}
 			}
