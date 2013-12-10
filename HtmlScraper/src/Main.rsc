@@ -11,6 +11,7 @@ import ParseTree;
 import SignatureParser;
 import util::Maybe;
 import DateTime;
+import M3;
 
 // Annotations
 anno str node@id;
@@ -58,6 +59,8 @@ public void buildProject(int apiLevel) {
 	}
 
 	println("finished at: <now()>");
+	println("start building m3 model");
+	createM3(apiLevel);
 }
 
 
