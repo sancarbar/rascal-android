@@ -62,7 +62,7 @@ public void buildProject(int apiLevel) {
 
 
 public void testBuild(int apiLevel){
-	loc url = |http://developer.android.com/reference/android/view/Display.html|;
+	loc url = |http://developer.android.com/reference/android/telephony/gsm/SmsMessage.html|;
 	//|http://developer.android.com/reference/android/R.html|;
 	str packagePath = "android";
 	buildClass(url, packagePath, apiLevel);
@@ -132,7 +132,8 @@ public list[Constructor] getConstructors(list[list[node]] constructorNodes) {
 		str constructorName = getConstructName(constructorAst);
 		str constructorModifiers = getConstructModifiers(constructorAst);
 		list[Argument] constuctorArguments = getConstructArguments(constructorAst);
-		constructors += constructor(constructorName, constructorModifiers, constuctorArguments);
+		bool isDeprecated = isConstructDeprecated(constructorNode);
+		constructors += constructor(constructorName, constructorModifiers, constuctorArguments, isDeprecated);
 	}
 	return constructors;
 }
@@ -147,7 +148,8 @@ public list[ConstantField] getConstantsAndFields(list[list[node]] constantsAndFi
 		str constantName = getConstructName(constantAst);
 		str constantModifiers =  getConstructModifiers(constantAst);
 		Type contantType = getConstructType(constantAst);
-		constantsAndFields += constantField(constantName, constantModifiers, contantType);
+		bool isDeprecated = isConstructDeprecated(constantOrFieldNode);
+		constantsAndFields += constantField(constantName, constantModifiers, contantType, isDeprecated);
 	}
 	return constantsAndFields;
 }
@@ -163,7 +165,8 @@ public list[Method] getMethods(list[list[node]] methodNodes) {
 		str methodModifiers = getConstructModifiers(methodAst);
 		Type methodReturnType = getConstructType(methodAst);
 		list[Argument] methodArguments = getConstructArguments(methodAst);
-		methods += method(methodName, methodModifiers, methodReturnType, methodArguments);
+		bool isDeprecated = isConstructDeprecated(methodNode);
+		methods += method(methodName, methodModifiers, methodReturnType, methodArguments, isDeprecated);
 	}
 	return methods;
 }
@@ -355,7 +358,7 @@ public map[str, list[list[node]]] getClassConstructs(node classHtml, int apiLeve
 				case deprecated:"p"(deprInfor): if ((deprecated@class ? "" ) == "caution") {
 					visit(deprecated) {
 						case "strong"(["text"(info)]): {
-							int depracatedLevel = toInt(substring(info,findFirst(info, "level ") + 6, findLast(info, ".")));
+							int depracatedLevel = findFirst(info, "level ") >= 0 ? toInt(substring(info,findFirst(info, "level ") + 6, findLast(info, "."))) : 1;
 							constructNode += "deprecated"(apiLevel < depracatedLevel);
 						}					
 					}
@@ -519,6 +522,15 @@ public bool isClassDeprecated(node classHtml) {
 				}
 			}
 		}
+	}
+	return false;
+}
+
+private bool isConstructDeprecated(list[node] constructNodes){
+	visit(constructNodes){
+		case "deprecated"(isDeprecated):{
+			return isDeprecated;
+		}		
 	}
 	return false;
 }
