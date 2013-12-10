@@ -16,10 +16,23 @@ data Argument = argument(str name, Type argType);
 // Creates Java file
 public void createClassFile(str packagePath, Class class, loc eclipseProject = |project://Android/src|) {
 	str packageName = replaceAll(packagePath, "/", ".");
-	loc packageLoc = eclipseProject + packagePath;
-	if(!exists(packageLoc)) {
-		mkDirectory(packageLoc);
+	list[str] parts = split(".", packageName);
+	loc packageLoc = eclipseProject + parts[0]  ;
+		if(!exists(packageLoc)) {
+		   mkDirectory(packageLoc);}
+	for(p <- parts[1..]){
+	
+			   packageLoc = packageLoc + "." + p;
+		   	if(!exists(packageLoc)) {
+		   mkDirectory(packageLoc);
+		
 	}
+	
+	}
+	//loc packageLoc = eclipseProject + packagePath;
+	//if(!exists(packageLoc)) {
+		//mkDirectory(packageLoc);
+	//}
 	loc classLoc = packageLoc + getFileName(class.name,".java");
 	appendToFile(classLoc, genClass(packageName, class));
 }
