@@ -37,7 +37,7 @@ public void main(int apiLevel) {
 	text(packages);
 }
 
-public void buildProject(int apiLevel) {
+public void buildProject(int apiLevel, int startat) {
 	println("start at: <now()>");
 
 	loc project = |http://developer.android.com/reference/packages.html|;
@@ -46,8 +46,10 @@ public void buildProject(int apiLevel) {
 
 	println("packages: <size(packages)>");
 	for (package <- packages) {
+	if(startat <= packageIndex){
 		map[str,set[map[str,value]]] information = getPackageInformation(package, apiLevel);
 		println("<packageIndex>. Package <package>");
+
 		for (class <- information["classes"] + information["interfaces"] + information["exceptions"] + information["errors"] + information["enums"]) {
 			url = class["url"];
 			packagePath = class["package_path"];
@@ -55,6 +57,8 @@ public void buildProject(int apiLevel) {
 
 			buildClass(url, packagePath, apiLevel);
 		}
+		}
+		else{println("<packageIndex> is already done");}
 		packageIndex += 1;
 	}
 
