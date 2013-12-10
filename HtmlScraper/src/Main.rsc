@@ -72,7 +72,7 @@ public void testBuild(int apiLevel){
 public void buildClass(loc url, str packagePath, int apiLevel) {
 	Maybe[Class] maybeClass = getClass(url, packagePath, apiLevel);
 	list[Class] nestedClasses = [];
-	for(nestedClassUrl <- getNestedClasses(url)){
+	for (nestedClassUrl <- getNestedClasses(url)){
 		nestedClass = getClass(nestedClassUrl, packagePath, apiLevel, acceptNestedClass = true);
 		if (nestedClass is just && getClassAPI(nestedClassUrl) <= apiLevel){
 			nestedClasses += nestedClass.val;
@@ -98,12 +98,12 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 	Type classSuperClass = getClassSuperClass(classAst);
 	list[Type] classInterfaces = getClassInterfaces(classAst);
 	
-	list[Constructor] constructors = getConstructors(classConstructs["constructors"]);
+	list[Constructor] constructors = getConstructors(classConstructs["constructors"], acceptNestedClass);
 	list[ConstantField] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
 	list[Method] methods = getMethods(classConstructs["methods"]);
 
 	// Check for innerclasses
-	if(contains(className, ".")) {
+	if (contains(className, ".")) {
 		if (acceptNestedClass) {
 			className = substring(className, findFirst(className, ".") + 1, size(className));
 		} else {
@@ -123,7 +123,7 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 }
 
 // Parses the constructors and returns them in the needed type for creating the templates
-public list[Constructor] getConstructors(list[list[node]] constructorNodes) {
+public list[Constructor] getConstructors(list[list[node]] constructorNodes, bool acceptNestedClass) {
 	list[Constructor] constructors = [];
 	// Get constructors
 	for(constructorNode <- constructorNodes){
@@ -133,6 +133,12 @@ public list[Constructor] getConstructors(list[list[node]] constructorNodes) {
 		str constructorModifiers = getConstructModifiers(constructorAst);
 		list[Argument] constuctorArguments = getConstructArguments(constructorAst);
 		bool isDeprecated = isConstructDeprecated(constructorNode);
+
+		// Fix constructor name for inner classes
+		if(acceptNestedClass && contains(constructorName, ".")) {
+			constructorName = substring(constructorName, findFirst(constructorName, ".") + 1, size(constructorName));
+		}
+
 		constructors += constructor(constructorName, constructorModifiers, constuctorArguments, isDeprecated);
 	}
 	return constructors;
