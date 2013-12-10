@@ -47,7 +47,7 @@ public void buildProject(int apiLevel) {
 	for (package <- packages) {
 		map[str,set[map[str,value]]] information = getPackageInformation(package, apiLevel);
 		println("<packageIndex>. Package <package>");
-		for (class <- information["classes"] + information["interfaces"] + information["exceptions"] + information["errors"]) {
+		for (class <- information["classes"] + information["interfaces"] + information["exceptions"] + information["errors"] + information["enums"]) {
 			url = class["url"];
 			packagePath = class["package_path"];
 			println("-- Class <url>");
