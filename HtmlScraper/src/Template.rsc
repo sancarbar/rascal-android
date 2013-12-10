@@ -7,7 +7,7 @@ import List;
 
 data Type = \void() | \primitive(str typeName) | \type(str packageName, str typeName) | \type(str packageName, str typeName, list[Generic] generics) | \typeParameter(str typeParameterName) | \array(Type arrayType);
 data Generic = simpleGeneric(Type genericType) | extendsGeneric(Type baseType, Type extendsType) | superGeneric(Type baseType, Type superType);
-data Class = class(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, bool isDeprecated, list[ConstantField] constantsAndFields, list[Constructor] constructors, list[Method] methods, list[Class] nestedClasses);
+data Class = class(str packageName, str classType, str name, str modifiers, Type superClass, list[Type] interfaces, bool isDeprecated, list[ConstantField] constantsAndFields, list[Constructor] constructors, list[Method] methods, list[Class] nestedClasses, list[str] enumValues);
 data Method = method(str name, str modifiers, Type returnType, list[Argument] arguments, bool isDeprecated);
 data ConstantField = constantField(str name, str modifiers, Type constantType, bool isDeprecated);
 data Constructor = constructor(str name, str modifiers, list[Argument] arguments, bool isDeprecated);
@@ -40,6 +40,7 @@ public str genClass(str packageName, Class class, bool isNestedClass = false) {
 	    '<}>
 		'<if (class.isDeprecated) {>@Deprecated<}>
 	    '<class.modifiers> <class.classType> <class.name><genTypeParameters(types)><genExtend(class.superClass)><genImplements(class.interfaces)> {
+	    '<genEnumValues(class.enumValues)>
 	    '<for (constant <- class.constantsAndFields) {>
 	    	'<genConstant(constant)>
 	    '<}>
@@ -134,6 +135,9 @@ public str genConstant(ConstantField constant) {
 		'<if (constant.isDeprecated) {>\t@Deprecated<}>
 		'\t<constant.modifiers> <printType(constant.constantType)> <constant.name> = <getDefaultTypeValue(constant.constantType)>; ";
 }
+
+// Helper functions to generate the enum values
+public str genEnumValues(list[str] enumValues) = "\t<intercalate(", ", [ enumValue | enumValue <- enumValues ])>;";
 
 // Helper functions to generate a method
 private str genMethod(Method method) {

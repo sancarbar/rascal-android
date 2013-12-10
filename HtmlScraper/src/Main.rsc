@@ -119,7 +119,11 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 		}
 	}
 
-	return just(class(packagePath, classType, className, classModifiers, classSuperClass, classInterfaces, isDeprecated, constantsAndFields, constructors, methods, []));
+	list[str] enumValues = [];
+	if (classType == "enum") {
+		enumValues = getEnumValues(classConstructs["enumValues"]);
+	}
+	return just(class(packagePath, classType, className, classModifiers, classSuperClass, classInterfaces, isDeprecated, constantsAndFields, constructors, methods, [], enumValues));
 }
 
 // Parses the constructors and returns them in the needed type for creating the templates
@@ -175,6 +179,16 @@ public list[Method] getMethods(list[list[node]] methodNodes) {
 		methods += method(methodName, methodModifiers, methodReturnType, methodArguments, isDeprecated);
 	}
 	return methods;
+}
+
+public list[str] getEnumValues(list[list[node]] enumValueNodes) {
+	list[str] enumValues = [];
+	for (enumValueNode <- enumValueNodes) {
+		str enumValueSignature = getConstructSignature(enumValueNode);
+		enumValueAst = parse(#ConstructDef, enumValueSignature);
+		enumValues += getConstructName(enumValueAst);
+	}
+	return enumValues;
 }
 
 public set[loc] getPackages(loc packageSummaryUrl) {
@@ -336,6 +350,7 @@ public map[str, list[list[node]]] getClassConstructs(node classHtml, int apiLeve
 	list[list[node]] fields = [];
 	list[list[node]] constructors = [];
 	list[list[node]] innerClasses = [];
+	list[list[node]] enumValues = [];
 	
 	str construct;
 	visit(classHtml) {
@@ -379,6 +394,7 @@ public map[str, list[list[node]]] getClassConstructs(node classHtml, int apiLeve
 					case "Protected Constructors": constructors += [constructNode];
 					case "Constants": constants += [constructNode];
 					case "Fields": fields += [constructNode];
+					case "Enum Values": enumValues += [constructNode];
 				}
 			}
 		}
@@ -388,8 +404,8 @@ public map[str, list[list[node]]] getClassConstructs(node classHtml, int apiLeve
 		"methods": methods,
 		"constants": constants,
 		"fields": fields,
-		"constructors": constructors
-		//"innerclasses": "TODO"
+		"constructors": constructors,
+		"enumValues": enumValues
 	);
 	
 	return classConstructs;
