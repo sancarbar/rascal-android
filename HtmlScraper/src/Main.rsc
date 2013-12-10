@@ -105,7 +105,7 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 	// Check for innerclasses
 	if(contains(className, ".")) {
 		if (acceptNestedClass) {
-			name = substring(className, findFirst(className, ".") + 1, size(className));
+			className = substring(className, findFirst(className, ".") + 1, size(className));
 		} else {
 			return nothing();
 		}
