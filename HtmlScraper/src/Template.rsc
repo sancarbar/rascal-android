@@ -77,7 +77,7 @@ private list[Type] getTypes(list[Method] methods, Type superClass, list[Type] in
 }
 
 // Helper function to generate the imports
-private str genImports(list[Type] types) = intercalate("\n", dup([ genImport(aType) | aType <- types, aType is \type ]));
+private str genImports(list[Type] types) = intercalate("\n", dup([ genImport(aType) | aType <- types, aType is \type, aType.packageName != "" ]));
 
 // Helper function to generate the type parameters
 private str genTypeParameters(list[Type] types) {
