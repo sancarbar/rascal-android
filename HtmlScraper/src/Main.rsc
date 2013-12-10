@@ -105,7 +105,7 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 	// Check for innerclasses
 	if(contains(className, ".")) {
 		if (acceptNestedClass) {
-			name = substring(className, findFirst(className, ".") + 1, size(className));
+			className = substring(className, findFirst(className, ".") + 1, size(className));
 		} else {
 			return nothing();
 		}
@@ -480,6 +480,7 @@ Type getType((Type)`<Iden i>`) = \array(getType([SignatureParser::Type] b))
 Type getType((Type)`<Iden i>`) = \typeParameter("<i>")
 	when size("<i>") == 1;
 Type getType((Type)`<Iden i>`) = \primitive("<i>");
+Type getType((Type)`<Iden i> <NestedGeneric g>`) = \type("", "<i>", getNestedGeneric(g));
 Type getType((Type)`<Iden i> <Link l>`) = \type(getPackageNameFromUrl("<l>"), "<i>");
 Type getType((Type)`<Iden i> <Link l> <NestedGeneric g>`) = \type(getPackageNameFromUrl("<l>"), "<i>", getNestedGeneric(g));
 default Type getType(Type t) { throw "You forgot a case for <t>"; }
