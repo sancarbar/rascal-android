@@ -546,7 +546,7 @@ public bool isClassDeprecated(node classHtml) {
 				case divD:"div"(divDescription): if((divD@class ? "") == "jd-descr") {
 					visit(divClassContent) {
 						case pC:"p"(pContent): if((pC@class ? "") == "caution") {
-							return true;
+							return contains(toString(pContent), "class");
 						}
 					}
 				}
