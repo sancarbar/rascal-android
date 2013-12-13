@@ -18,9 +18,11 @@ anno str node@id;
 anno str node@href;
 anno str node@class;
 
-// |http://developer.android.com/reference/packages.html|
+loc baseLoc = |http://developer.android.com|; // to run offline, change this path to a local folder (like loc baseLoc = |file:///Users/leonardpunt/Downloads/android-api-docs/docs-api-19|)
+
+
 public void main(int apiLevel) {
-	loc project = |http://developer.android.com/reference/packages.html|;
+	loc project = baseLoc + "/reference/packages.html";
 	
 	set[value] packages = {};
 	
@@ -40,7 +42,7 @@ public void main(int apiLevel) {
 public void buildProject(int apiLevel, int startat) {
 	println("start at: <now()>");
 
-	loc project = |http://developer.android.com/reference/packages.html|;
+	loc project = baseLoc + "/reference/packages.html";
 	set[loc] packages = getPackages(project);
 	int packageIndex = 1;
 
@@ -65,15 +67,6 @@ public void buildProject(int apiLevel, int startat) {
 	println("finished at: <now()>");
 	println("start building m3 model");
 	createM3(apiLevel);
-}
-
-
-public void testBuild(int apiLevel){
-	loc url = |http://developer.android.com/reference/android/telephony/gsm/SmsMessage.html|;
-	//|http://developer.android.com/reference/android/R.html|;
-	str packagePath = "android";
-	buildClass(url, packagePath, apiLevel);
-
 }
 
 public void buildClass(loc url, str packagePath, int apiLevel) {
@@ -208,7 +201,7 @@ public set[loc] getPackages(loc packageSummaryUrl) {
 			// Get anchors.
 			visit(ulList) {
 				case alink:"a"(aContent): if((alink@href ? "") != "") {
-					packages += |http://developer.android.com<alink@href>|;
+					packages += baseLoc + cleanUrl(alink@href);
 				}
 			}
 		}
@@ -218,7 +211,7 @@ public set[loc] getPackages(loc packageSummaryUrl) {
 }
 
 
-public map[str, set[map[str, value]]] getPackageInformation(loc packageInformationUrl, value api) {
+public map[str, set[map[str, value]]] getPackageInformation(loc packageInformationUrl, int apiLevel) {
 	node packageHtml = readHTMLFile(packageInformationUrl);
 	
 	set[str] urlSet = {};
@@ -250,30 +243,20 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 								case alink:"a"(a_content): if((alink@href ? "") != "") {
 									// Get Names
 									visit(a_content) {
-										case atext:"text"(text_content): { 
+										case atext:"text"(text_content): {
+											str cleanUrl = cleanUrl(alink@href);
+											loc url = baseLoc + cleanUrl;
+											int classApiLevel = getClassAPI(url);
 											map[str,value] package_info = (
-
-												//"sig" : extractClassSig(html),
-												//sure it shouldn't be the one below? because the html does not contain the link to the class?
-												//"sig" : extractClassSig(readHTMLFile(|http://developer.android.com<alink@href>|)),
-												"name":text_content,
-												"url":|http://developer.android.com<alink@href>|,
-												"package_path": substring(alink@href, 11, findLast(alink@href, "/")),
-												"api-level": getClassAPI(|http://developer.android.com<alink@href>|)
-												//"information":getClassInformation(|http://developer.android.com<alink@href>|)
+												"name": text_content,
+												"url": url,
+												"package_path": substring(cleanUrl, 11, findLast(cleanUrl, "/")),
+												"api-level": classApiLevel
 											);
-											// Group by class type.
-											value apiLVL = package_info["api-level"];
-											if(apiLVL > api){
-													classSet += {};
-												}
-											else{
-												switch (entry_type)
-												{
-													case "Classes": {
-														classSet += {package_info};
-														
-													}
+											if (classApiLevel <= apiLevel) {
+												// Group by class type.
+												switch (entry_type)	{
+													case "Classes": classSet += {package_info};
 													case "Interfaces": interfaceSet += {package_info};
 													case "Exceptions": exceptionSet += {package_info};
 													case "Enums": enumsSet += {package_info};
@@ -322,8 +305,8 @@ public list[loc] getNestedClasses(loc classUrl) {
 			    case tdlink:"td"(td_content): if((tdlink@class ? "") == "jd-linkcol"){
 			    	visit(td_content){
 			    		case alink:"a"(a_content): if((alink@href ? "") != ""){
-							switch(entry_type){
-							case "Nested Classes": nclasses += |http://developer.android.com<alink@href>|;
+							switch(entry_type) {
+								case "Nested Classes": nclasses += baseLoc + cleanUrl(alink@href);
 							}
 						}
 					}
@@ -425,7 +408,7 @@ public str getClassSignature(node classHtml) {
 			visit(div_class_sig) {
 				case text:"text"(text_content) :{ class_sig += text_content + " "; }
 				case alink:"a"(a_content) :if((alink@href ? "") != "") {
-					class_sig += alink@href + " ";
+					class_sig += cleanUrl(alink@href) + " ";
 				}
 			}
 		}
@@ -475,7 +458,7 @@ public str getConstructSignature(list[node] constructNodes) {
 	str signature = "";
 	visit (constructNodes) {
 		case text:"text"(partOfSignature): signature += partOfSignature;
-		case alink:"a"(linkToTypes): if ((alink@href ? "") != "") signature += " " + alink@href + " ";
+		case alink:"a"(linkToTypes): if ((alink@href ? "") != "") signature += " " + cleanUrl(alink@href) + " ";
 	}
 	return signature;
 }
@@ -567,4 +550,9 @@ private bool isConstructDeprecated(list[node] constructNodes){
 
 private str getPackageNameFromUrl(str url) {
 	return replaceAll(substring(url, 11, findLast(url, ".")), "/", ".");
+}
+
+private str cleanUrl(str url) {
+	url = substring(url, findFirst(url, "/reference"), size(url) - 1);
+	return endsWith(url, "l") ? url : "<url>l";
 }
