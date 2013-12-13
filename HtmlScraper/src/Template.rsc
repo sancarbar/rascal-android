@@ -137,7 +137,7 @@ public str genConstant(ConstantField constant) {
 }
 
 // Helper functions to generate the enum values
-public str genEnumValues(list[str] enumValues) = "\t<intercalate(", ", [ enumValue | enumValue <- enumValues ])>;";
+public str genEnumValues(list[str] enumValues) = isEmpty(enumValues) ? "" : "\t<intercalate(", ", [ enumValue | enumValue <- enumValues ])>;";
 
 // Helper functions to generate a method
 private str genMethod(Method method) {
