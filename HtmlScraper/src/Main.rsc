@@ -369,8 +369,8 @@ public map[str, list[list[node]]] getClassConstructs(node classHtml, int apiLeve
 				case deprecated:"p"(deprInfor): if ((deprecated@class ? "" ) == "caution") {
 					visit(deprecated) {
 						case "strong"(["text"(info)]): {
-							int depracatedLevel = findFirst(info, "level ") >= 0 ? toInt(substring(info,findFirst(info, "level ") + 6, findLast(info, "."))) : 1;
-							constructNode += "deprecated"(apiLevel < depracatedLevel);
+							int deprecatedLevel = /level\s<depLevel:\d+>/ := info ? toInt(depLevel) : 1;
+							constructNode += "deprecated"(apiLevel < deprecatedLevel);
 						}					
 					}
 				}
