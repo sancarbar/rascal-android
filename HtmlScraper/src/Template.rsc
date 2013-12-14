@@ -15,17 +15,20 @@ data Argument = argument(str name, Type argType);
 
 // Creates Java file
 public void createClassFile(str packagePath, Class class, loc eclipseProject = |project://Android/src|) {
+	//loc eclipseProject = |project://Android<"<apiLevel>">/src|; //for the loop
 	str packageName = replaceAll(packagePath, "/", ".");
 	list[str] parts = split(".", packageName);
 	loc packageLoc = eclipseProject + parts[0]  ;
 		if(!exists(packageLoc)) {
 		   mkDirectory(packageLoc);}
-	for(p <- parts[1..]){
+	if(size(parts)>1){
+		for(p <- parts[1..]){
 	
-			   packageLoc = packageLoc + "." + p;
+			packageLoc = packageLoc + "." + p;
 		   	if(!exists(packageLoc)) {
-		   mkDirectory(packageLoc);
+		  		 mkDirectory(packageLoc);
 		
+		}
 	}
 	
 	}

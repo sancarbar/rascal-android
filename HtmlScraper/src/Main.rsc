@@ -20,6 +20,24 @@ anno str node@class;
 
 loc baseLoc = |http://developer.android.com|; // to run offline, change this path to a local folder (like loc baseLoc = |file:///Users/leonardpunt/Downloads/android-api-docs/docs-api-19|)
 
+public void multiple() {
+
+	list[int] ints = [1..6];
+	for(i <- ints)
+	{
+		println("APILEVEL <i>");
+		if(i == 1)
+		{
+			buildProject(i,37);
+		}
+		else{
+			buildProject(i,1);
+		}
+	}
+
+}
+
+// |http://developer.android.com/reference/packages.html|
 
 public void main(int apiLevel) {
 	loc project = baseLoc + "/reference/packages.html";
