@@ -18,7 +18,7 @@ anno str node@id;
 anno str node@href;
 anno str node@class;
 
-loc baseLoc = |http://developer.android.com|; // to run offline, change this path to a local folder (like loc baseLoc = |file:///Users/leonardpunt/Downloads/android-api-docs/docs-api-19|)
+loc baseLoc = |file:///Users/Cindy/Downloads/android-api-docs/docs-api-7|;
 
 public void multiple() {
 
@@ -82,11 +82,34 @@ public void buildProject(int apiLevel, int startat) {
 			println("<packageIndex> is already done");
 		}
 		packageIndex += 1;
+		
 	}
+	
+	for(annotation <- getAnnotationURL())
+		{
+			println("annotation");
+			buildClass(baseLoc + annotation,substring(annotation, 11, findLast(annotation, "/")),apiLevel);
+		}
 
 	println("finished at: <now()>");
 	println("start building m3 model");
 	createM3(apiLevel);
+}
+
+public list[str] getAnnotationURL(loc annot = baseLoc + "reference/java/lang/annotation/Annotation.html")
+{
+	list[str] aList = [];
+	node annotations = readHTMLFile(annot);
+	visit(annotations){
+		case divid:"div"(div_content): if ((divid@id ? "") == "subclasses-indirect-list"){
+			visit(div_content){
+				case alink:"a"(aContent): if((alink@href ? "") != "") {
+					aList += cleanUrl(alink@href);
+				}
+			}
+		}
+	}
+	return aList;
 }
 
 public void buildClass(loc url, str packagePath, int apiLevel) {
@@ -257,7 +280,7 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 			str entry_type = "";
 		
 			visit (div_content) {
-				case h2_elem:"h2"(h2_content): {
+				case h2_elem:"h3"(h2_content): {
 					visit(h2_content) {
 						case text_elem:"text"(text_content): entry_type = text_content;
 					}
