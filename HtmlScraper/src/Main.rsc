@@ -18,26 +18,7 @@ anno str node@id;
 anno str node@href;
 anno str node@class;
 
-loc baseLoc = |file:///Users/Cindy/Downloads/android-api-docs/docs-api-7|;
-
-public void multiple() {
-
-	list[int] ints = [1..6];
-	for(i <- ints)
-	{
-		println("APILEVEL <i>");
-		if(i == 1)
-		{
-			buildProject(i,37);
-		}
-		else{
-			buildProject(i,1);
-		}
-	}
-
-}
-
-// |http://developer.android.com/reference/packages.html|
+loc baseLoc = |http://developer.android.com|; // to run offline, change this path to a local folder (like loc baseLoc = |file:///Users/leonardpunt/Downloads/android-api-docs/docs-api-19|)
 
 public void main(int apiLevel) {
 	loc project = baseLoc + "/reference/packages.html";
@@ -82,34 +63,15 @@ public void buildProject(int apiLevel, int startat) {
 			println("<packageIndex> is already done");
 		}
 		packageIndex += 1;
-		
 	}
-	
-	for(annotation <- getAnnotationURL())
-		{
-			println("annotation");
-			buildClass(baseLoc + annotation,substring(annotation, 11, findLast(annotation, "/")),apiLevel);
-		}
+
+	for(annotation <- getAnnotationUrls()) {
+		buildClass(baseLoc + annotation,substring(annotation, 11, findLast(annotation, "/")),apiLevel);
+	}
 
 	println("finished at: <now()>");
 	println("start building m3 model");
 	createM3(apiLevel);
-}
-
-public list[str] getAnnotationURL(loc annot = baseLoc + "reference/java/lang/annotation/Annotation.html")
-{
-	list[str] aList = [];
-	node annotations = readHTMLFile(annot);
-	visit(annotations){
-		case divid:"div"(div_content): if ((divid@id ? "") == "subclasses-indirect-list"){
-			visit(div_content){
-				case alink:"a"(aContent): if((alink@href ? "") != "") {
-					aList += cleanUrl(alink@href);
-				}
-			}
-		}
-	}
-	return aList;
 }
 
 public void buildClass(loc url, str packagePath, int apiLevel) {
@@ -367,6 +329,21 @@ public list[loc] getNestedClassUrls(loc classUrl) {
 		}
 	}
 	return nclasses;
+}
+
+public list[str] getAnnotationUrls(loc annot = baseLoc + "reference/java/lang/annotation/Annotation.html") {
+	list[str] aList = [];
+	node annotations = readHTMLFile(annot);
+	visit(annotations) {
+		case divid:"div"(div_content): if ((divid@id ? "") == "subclasses-indirect-list") {
+			visit(div_content) {
+				case alink:"a"(aContent): if((alink@href ? "") != "") {
+					aList += cleanUrl(alink@href);
+				}
+			}
+		}
+	}
+	return aList;
 }
 
 public int getClassAPI(loc classURL) {

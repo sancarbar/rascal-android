@@ -15,27 +15,21 @@ data Argument = argument(str name, Type argType);
 
 // Creates Java file
 public void createClassFile(str packagePath, Class class, loc eclipseProject = |project://Android/src|) {
-	//loc eclipseProject = |project://Android<"<apiLevel>">/src|; //for the loop
 	str packageName = replaceAll(packagePath, "/", ".");
 	list[str] parts = split(".", packageName);
-	loc packageLoc = eclipseProject + parts[0]  ;
-		if(!exists(packageLoc)) {
-		   mkDirectory(packageLoc);}
-	if(size(parts)>1){
-		for(p <- parts[1..]){
-	
+	loc packageLoc = eclipseProject + parts[0] ;
+	// fix for making directories on Windows as well
+	if (!exists(packageLoc)) {
+		mkDirectory(packageLoc);
+	}
+	if (size(parts) > 1) {
+		for(p <- parts[1..]) {
 			packageLoc = packageLoc + "." + p;
-		   	if(!exists(packageLoc)) {
-		  		 mkDirectory(packageLoc);
-		
+		   	if (!exists(packageLoc)) {
+				mkDirectory(packageLoc);
+			}
 		}
 	}
-	
-	}
-	//loc packageLoc = eclipseProject + packagePath;
-	//if(!exists(packageLoc)) {
-		//mkDirectory(packageLoc);
-	//}
 	loc classLoc = packageLoc + getFileName(class.name,".java");
 	appendToFile(classLoc, genClass(packageName, class));
 }
@@ -100,7 +94,7 @@ private list[Type] getNestedClassesTypes(list[Class] nestedClasses) {
 }
 
 // Helper function to generate the imports
-private str genImports(list[Type] types, str className) = intercalate("\n", dup([ genImport(aType) | aType <- types, aType is \type, aType.packageName != "" && !contains(aType.packageName, className)]));
+private str genImports(list[Type] types, str className) = intercalate("\n", dup([ genImport(aType) | aType <- types, aType is \type, aType.packageName != "" && !contains(aType.packageName, className + ".")]));
 
 // Helper function to generate the type parameters
 private str genTypeParameters(list[Type] types) {
