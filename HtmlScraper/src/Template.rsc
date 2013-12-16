@@ -30,13 +30,13 @@ public str getFileName(str name, str ext){
 
 // Helper function to generate a class
 public str genClass(str packageName, Class class, bool isNestedClass = false) {
-	list[Type] types = getTypes(class.methods, class.superClass, class.interfaces, class.constantsAndFields, class.constructors);
+	list[Type] types = getTypes(class);
 	return
 	  	"
 	  	'<if (!isNestedClass) {>
 	  	'package <packageName>;
 	  	'
-	  	'<genImports(types)>
+	  	'<genImports(types, class.name)>
 	    '<}>
 		'<if (class.isDeprecated) {>@Deprecated<}>
 	    '<class.modifiers> <class.classType> <class.name><genTypeParameters(types)><genExtend(class.superClass)><genImplements(class.interfaces)> {
@@ -56,29 +56,35 @@ public str genClass(str packageName, Class class, bool isNestedClass = false) {
 	    '}";
 }
 
-private list[Type] getTypes(list[Method] methods, Type superClass, list[Type] interfaces, list[ConstantField] constants, list[Constructor] constructors) {
+private list[Type] getTypes(Class class) {
 	list[Type] types = [];
-	types += superClass;
-	types += interfaces;
-	for (method <- methods) {
+	types += class.superClass;
+	types += class.interfaces;
+	for (method <- class.methods) {
 		types += method.returnType;
 		for (argument <- method.arguments) {
 			types += argument.argType;
 		}
 	}
-	for (constant <- constants) {
+	for (constant <- class.constantsAndFields) {
 		types += constant.constantType;
 	}
-	for (constructor <- constructors) {
+	for (constructor <- class.constructors) {
 		for (arg <- constructor.arguments) {
 			types += arg.argType;
 		}
 	}
+	types += getNestedClassesTypes(class.nestedClasses);
+
 	return types;
 }
 
+private list[Type] getNestedClassesTypes(list[Class] nestedClasses) {
+	return ([] | it + getTypes(nestedClass) | nestedClass <- nestedClasses);
+}
+
 // Helper function to generate the imports
-private str genImports(list[Type] types) = intercalate("\n", dup([ genImport(aType) | aType <- types, aType is \type, aType.packageName != "" ]));
+private str genImports(list[Type] types, str className) = intercalate("\n", dup([ genImport(aType) | aType <- types, aType is \type, aType.packageName != "" && !contains(aType.packageName, className)]));
 
 // Helper function to generate the type parameters
 private str genTypeParameters(list[Type] types) {

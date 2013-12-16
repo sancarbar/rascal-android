@@ -48,19 +48,21 @@ public void buildProject(int apiLevel, int startat) {
 
 	println("packages: <size(packages)>");
 	for (package <- packages) {
-	if(startat <= packageIndex){
-		map[str,set[map[str,value]]] information = getPackageInformation(package, apiLevel);
-		println("<packageIndex>. Package <package>");
+		if (startat <= packageIndex) {
+			map[str,set[map[str,value]]] information = getPackageInformation(package, apiLevel);
+			println("<packageIndex>. Package <package>");
 
-		for (class <- information["classes"] + information["interfaces"] + information["exceptions"] + information["errors"] + information["enums"]) {
-			url = class["url"];
-			packagePath = class["package_path"];
-			println("-- Class <url>");
+			for (class <- information["classes"] + information["interfaces"] + information["exceptions"] + information["errors"] + information["enums"]) {
+				url = class["url"];
+				packagePath = class["package_path"];
+				println("-- Class <url>");
 
-			buildClass(url, packagePath, apiLevel);
+				buildClass(url, packagePath, apiLevel);
+			}
 		}
+		else {
+			println("<packageIndex> is already done");
 		}
-		else{println("<packageIndex> is already done");}
 		packageIndex += 1;
 	}
 
@@ -71,19 +73,27 @@ public void buildProject(int apiLevel, int startat) {
 
 public void buildClass(loc url, str packagePath, int apiLevel) {
 	Maybe[Class] maybeClass = getClass(url, packagePath, apiLevel);
-	list[Class] nestedClasses = [];
-	for (nestedClassUrl <- getNestedClasses(url)){
-		nestedClass = getClass(nestedClassUrl, packagePath, apiLevel, acceptNestedClass = true);
-		if (nestedClass is just && getClassAPI(nestedClassUrl) <= apiLevel){
-			nestedClasses += nestedClass.val;
-		} 
-	}
 	
 	if (maybeClass is just) {
 		Class class = maybeClass.val;
-		class.nestedClasses = nestedClasses;
+		class = addNestedClasses(class, url, packagePath, apiLevel);
 		createClassFile(packagePath, class);
 	}
+}
+
+private Class addNestedClasses(Class class, loc url, str packagePath, int apiLevel) {
+	list[Class] nestedClasses = [];
+	for (nestedClassUrl <- getNestedClassUrls(url)) {
+		nestedClass = getClass(nestedClassUrl, packagePath, apiLevel, acceptNestedClass = true);
+		if (nestedClass is just && getClassAPI(nestedClassUrl) <= apiLevel) {
+			Class nClass = nestedClass.val;
+			nClass = addNestedClasses(nClass, nestedClassUrl, packagePath, apiLevel);
+			nestedClasses += nClass;
+		}
+	}
+
+	class.nestedClasses = nestedClasses;
+	return class;
 }
 
 private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool acceptNestedClass = false) {
@@ -93,23 +103,24 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 	bool isDeprecated = isClassDeprecated(classHtml);
 	classAst = parse(#ClassDef, classSignature);
 	str className = getClassName(classAst);
-	str classModifiers = getClassModifiers(classAst);
-	str classType = getClassTypeCategory(classAst);
-	Type classSuperClass = getClassSuperClass(classAst);
-	list[Type] classInterfaces = getClassInterfaces(classAst);
 	
-	list[Constructor] constructors = getConstructors(classConstructs["constructors"], acceptNestedClass);
-	list[ConstantField] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
-	list[Method] methods = getMethods(classConstructs["methods"]);
-
 	// Check for innerclasses
 	if (contains(className, ".")) {
 		if (acceptNestedClass) {
-			className = substring(className, findFirst(className, ".") + 1, size(className));
+			className = substring(className, findLast(className, ".") + 1, size(className));
 		} else {
 			return nothing();
 		}
 	}
+
+	str classModifiers = getClassModifiers(classAst);
+	str classType = getClassTypeCategory(classAst);
+	Type classSuperClass = getClassSuperClass(classAst);
+	list[Type] classInterfaces = getClassInterfaces(classAst);
+
+	list[Constructor] constructors = getConstructors(classConstructs["constructors"], acceptNestedClass);
+	list[ConstantField] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
+	list[Method] methods = getMethods(classConstructs["methods"]);
 
 	// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
 	if (classType == "interface") {
@@ -140,7 +151,7 @@ public list[Constructor] getConstructors(list[list[node]] constructorNodes, bool
 
 		// Fix constructor name for inner classes
 		if(acceptNestedClass && contains(constructorName, ".")) {
-			constructorName = substring(constructorName, findFirst(constructorName, ".") + 1, size(constructorName));
+			constructorName = substring(constructorName, findLast(constructorName, ".") + 1, size(constructorName));
 		}
 
 		constructors += constructor(constructorName, constructorModifiers, constuctorArguments, isDeprecated);
@@ -286,7 +297,7 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 }
 
 
-public list[loc] getNestedClasses(loc classUrl) {
+public list[loc] getNestedClassUrls(loc classUrl) {
 	node ast = readHTMLFile(classUrl);
 	str entry_type = "";
 	list[loc] nclasses = [];
