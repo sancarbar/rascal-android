@@ -45,7 +45,7 @@ lexical TypeCategory
 	;
 
 syntax ClassDef
-	= class: Modifiers+ TypeCategory Iden ExtendsClause? ImplementsClause?
+	= class: Modifiers+ TypeCategory Iden ExtendsClause? ImplementsClause? TypeParameters?
 	;
 
 syntax ConstructDef
@@ -64,6 +64,10 @@ syntax ImplementsClause
 
 syntax SuperClause
 	= super: "super" Type
+	;
+
+syntax TypeParameters
+	= "|" NestedGeneric
 	;
 
 syntax NestedGeneric

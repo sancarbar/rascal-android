@@ -106,7 +106,7 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 	bool isDeprecated = isClassDeprecated(classHtml);
 	classAst = parse(#ClassDef, classSignature);
 	str className = getClassName(classAst);
-	
+
 	// Check for innerclasses
 	if (contains(className, ".")) {
 		if (acceptNestedClass) {
@@ -120,6 +120,7 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 	str classType = getClassTypeCategory(classAst);
 	Type classSuperClass = getClassSuperClass(classAst);
 	list[Type] classInterfaces = getClassInterfaces(classAst);
+	list[Generic] classTypeParameters = getClassTypeParameters(classAst);
 
 	list[Constructor] constructors = getConstructors(classConstructs["constructors"], acceptNestedClass);
 	list[ConstantField] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
@@ -137,7 +138,7 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 	if (classType == "enum") {
 		enumValues = getEnumValues(classConstructs["enumValues"]);
 	}
-	return just(class(packagePath, classType, className, classModifiers, classSuperClass, classInterfaces, isDeprecated, constantsAndFields, constructors, methods, [], enumValues));
+	return just(class(packagePath, classType, className, classModifiers, classSuperClass, classInterfaces, isDeprecated, constantsAndFields, constructors, methods, [], enumValues, classTypeParameters));
 }
 
 // Parses the constructors and returns them in the needed type for creating the templates
@@ -439,42 +440,63 @@ public map[str, list[list[node]]] getClassConstructs(node classHtml, int apiLeve
 }
 
 public str getClassSignature(node classHtml) {
-	str class_sig = "";
+	str classSignature = "";
+	str typeParameterInfo = "";
 	visit(classHtml) {
 		case divC:"div"(div_class_sig): if((divC@id ? "") == "jd-header") {
 			visit(div_class_sig) {
-				case text:"text"(text_content) :{ class_sig += text_content + " "; }
-				case alink:"a"(a_content) :if((alink@href ? "") != "") {
-					class_sig += cleanUrl(alink@href) + " ";
+				case text:"text"(text_content): { classSignature += text_content + " "; }
+				case h1:"h1"(h1Content): "";
+				case alink:"a"(a_content): if((alink@href ? "") != "") {
+					classSignature += cleanUrl(alink@href) + " ";
 				}
 			}
 		}
 	}
-	return trim(class_sig);
+
+	str typeParameters = getClassSignatureTypeParameters(classHtml);
+	if (contains(typeParameters, "\<")) {
+		typeParameters = substring(typeParameters, findFirst(typeParameters, "\<"), findLast(typeParameters, "\>") + 1);
+		classSignature = trim(classSignature) + " | " + trim(typeParameters);
+	}
+	println(classSignature);
+	return classSignature;
+}
+
+private str getClassSignatureTypeParameters(node classHtml) {
+	visit(classHtml) {
+		case td:"td"(tdContent): if((td@class ? "") == "jd-inheritance-class-cell") {
+			visit(tdContent) {
+				case text:"text"(textContent): {
+					return textContent;
+				}
+			}
+		}
+	}
 }
 
 public str getClassName(ClassDef classDef) {
 	visit (classDef) {
-		case (ClassDef)`<Modifiers+ _> <TypeCategory _> <Iden i> <ExtendsClause? _> <ImplementsClause? _>`: return "<i>";
+		case (ClassDef)`<Modifiers+ _> <TypeCategory _> <Iden i> <ExtendsClause? _> <ImplementsClause? _> <TypeParameters? _>`: return "<i>";
 	}
 }
 
 public str getClassModifiers(ClassDef classDef) {
 	visit (classDef) {
-		case (ClassDef)`<Modifiers+ m> <TypeCategory _> <Iden i> <ExtendsClause? _> <ImplementsClause? _>`: return "<m>";
+		case (ClassDef)`<Modifiers+ m> <TypeCategory _> <Iden _> <ExtendsClause? _> <ImplementsClause? _> <TypeParameters? _>`: return "<m>";
 	}
 }
 
 public str getClassTypeCategory(ClassDef classDef) {
 	visit (classDef) {
-		case (ClassDef)`<Modifiers+ _> <TypeCategory t> <Iden i> <ExtendsClause? _> <ImplementsClause? _>`: return "<t>";
+		case (ClassDef)`<Modifiers+ _> <TypeCategory t> <Iden _> <ExtendsClause? _> <ImplementsClause? _> <TypeParameters? _>`: return "<t>";
 	}
 }
 
 public Type getClassSuperClass(ClassDef classDef) {
 	visit (classDef) {
-		case (ClassDef)`<Modifiers+ _> <TypeCategory t> <Iden i> <ImplementsClause? _>`: return \void();
-		case (ClassDef)`<Modifiers+ _> <TypeCategory t> <Iden i> <ExtendsClause e> <ImplementsClause? _>`: return getExtendsClause(e);
+		case (ClassDef)`<Modifiers+ _> <TypeCategory _> <Iden _> <ImplementsClause? _> <TypeParameters? _>`: return \void();
+		case (ClassDef)`<Modifiers+ _> <TypeCategory _> <Iden _> <ExtendsClause e> <ImplementsClause? _> <TypeParameters? _>`: return getExtendsClause(e);
 	}
 }
 
@@ -483,13 +505,23 @@ default Type getExtendsClause(ExtendsClause e) { throw "You forgot a case for <e
 
 public list[Type] getClassInterfaces(ClassDef classDef) {
 	visit (classDef) {
-		case (ClassDef)`<Modifiers+ _> <TypeCategory t> <Iden i> <ExtendsClause? _>`: return [];
-		case (ClassDef)`<Modifiers+ _> <TypeCategory t> <Iden i> <ExtendsClause? _> <ImplementsClause i>`: return getImplementsClause(i);
+		case (ClassDef)`<Modifiers+ _> <TypeCategory _> <Iden _> <ExtendsClause? _> <TypeParameters? _>`: return [];
+		case (ClassDef)`<Modifiers+ _> <TypeCategory _> <Iden _> <ExtendsClause? _> <ImplementsClause i> <TypeParameters? _>`: return getImplementsClause(i);
 	}
 }
 
 list[Type] getImplementsClause((ImplementsClause)`implements <Type+ ts>`) = [ getType(t) | t <- ts ];
 default list[Type] getImplementsClause(ImplementsClause i) { throw "You forgot a case for <i>"; }
+
+public list[Generic] getClassTypeParameters(ClassDef classDef) {
+	visit (classDef) {
+		case (ClassDef)`<Modifiers+ _> <TypeCategory _> <Iden _> <ExtendsClause? _> <ImplementsClause? i>`: return [];
+		case (ClassDef)`<Modifiers+ _> <TypeCategory _> <Iden _> <ExtendsClause? _> <ImplementsClause? i> <TypeParameters ts>`: return getTypeParameters(ts);
+	}
+}
+
+list[Generic] getTypeParameters((TypeParameters)`| <NestedGeneric gs>`) = getNestedGeneric(gs);
+default list[Generic] getTypeParameters(TypeParameters i) { throw "You forgot a case for <i>"; }
 
 public str getConstructSignature(list[node] constructNodes) {
 	str signature = "";
