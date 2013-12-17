@@ -65,8 +65,8 @@ public void buildProject(int apiLevel, int startat) {
 		packageIndex += 1;
 	}
 
-	for(annotation <- getAnnotationUrls()) {
-		buildClass(baseLoc + annotation,substring(annotation, 11, findLast(annotation, "/")),apiLevel);
+	for (annotationUrl <- getAnnotationUrls()) {
+		buildClass(baseLoc + annotationUrl, substring(annotationUrl, 11, findLast(annotationUrl, "/")), apiLevel);
 	}
 
 	println("finished at: <now()>");
@@ -339,10 +339,14 @@ public list[str] getAnnotationUrls(loc annot = baseLoc + "reference/java/lang/an
 	list[str] aList = [];
 	node annotations = readHTMLFile(annot);
 	visit(annotations) {
-		case divid:"div"(div_content): if ((divid@id ? "") == "subclasses-indirect-list") {
+		case divid:"div"(div_content): if ((divid@id ? "") == "subclasses-indirect-summary") {
 			visit(div_content) {
-				case alink:"a"(aContent): if((alink@href ? "") != "") {
-					aList += cleanUrl(alink@href);
+				case td:"td"(tdContent): if ((td@class ? "") == "jd-linkcol") {
+					visit(tdContent) {
+						case alink:"a"(aContent): if((alink@href ? "") != "") {
+							aList += cleanUrl(alink@href);
+						}
+					}
 				}
 			}
 		}
