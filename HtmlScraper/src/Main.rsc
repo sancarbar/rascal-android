@@ -240,11 +240,15 @@ public map[str, set[map[str, value]]] getPackageInformation(loc packageInformati
 		case parent_div_elem:"div"(div_content): if((parent_div_elem@id ? "") == "jd-content") {
 		
 			str entry_type = "";
-		
 			visit (div_content) {
-				case h2_elem:"h3"(h2_content): {
-					visit(h2_content) {
-						case text_elem:"text"(text_content): entry_type = text_content;
+				case h2Elem:"h2"(h2Content): { // for the API levels higher than 10
+					visit(h2Content) {
+						case textElem:"text"(textContent): entry_type = textContent;
+					}
+				}
+				case h3Elem:"h3"(h3Content): { // for the API levels below 10
+					visit(h3Content) {
+						case textElem:"text"(textContent): entry_type = textContent;
 					}
 				}
 				case table_elem:"table"(table_trs): if((table_elem@class ? "") == "jd-sumtable-expando") {
