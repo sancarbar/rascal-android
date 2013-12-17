@@ -18,7 +18,7 @@ anno str node@id;
 anno str node@href;
 anno str node@class;
 
-loc baseLoc = |http://developer.android.com|; // to run offline, change this path to a local folder (like loc baseLoc = |file:///Users/leonardpunt/Downloads/android-api-docs/docs-api-19|)
+loc baseLoc =  |file:///Users/Cindy/Downloads/android-api-docs/docs-api-4|;
 
 public void main(int apiLevel) {
 	loc project = baseLoc + "/reference/packages.html";
@@ -101,7 +101,7 @@ private Class addNestedClasses(Class class, loc url, str packagePath, int apiLev
 
 private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool acceptNestedClass = false) {
 	node classHtml = readHTMLFile(url);
-	map[str, list[list[node]]] classConstructs = getClassConstructs(classHtml, apiLevel);
+	//map[str, list[list[node]]] classConstructs = getClassConstructs(classHtml, apiLevel);
 	str classSignature = getClassSignature(classHtml);
 	bool isDeprecated = isClassDeprecated(classHtml);
 	classAst = parse(#ClassDef, classSignature);
@@ -120,10 +120,24 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 	str classType = getClassTypeCategory(classAst);
 	Type classSuperClass = getClassSuperClass(classAst);
 	list[Type] classInterfaces = getClassInterfaces(classAst);
+	
+		map[str,list[node]] classConstructs = (
+		"methods": getClassCons(classHtml, "pubmethods", apiLevel) + getClassCons(classHtml, "promethods", apiLevel)
+		//"constants": getClassCons(classHtml,"constants"),
+		//"fields": getClassCons(classHtml,"lfields"),
+		//"constructors": getClassCons(classHtml,"pubctors")+getClassCons(classHtml,"proctors"),
+		//"enumValues": getClassCons(classHtml,"enumconstants")
+	);
 
-	list[Constructor] constructors = getConstructors(classConstructs["constructors"], acceptNestedClass);
-	list[ConstantField] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
-	list[Method] methods = getMethods(classConstructs["methods"]);
+	text(classConstructs);
+	//list[Constructor] constructors = getConstructors(classConstructs["constructors"], acceptNestedClass);
+	//list[Constructor] constructors = getConstructors2(getClassCons(classHtml,"pubctors"), acceptNestedClass, apiLevel, false) 
+	//	+ getConstructors2(getClassCons(classHtml,"pubctors"), acceptNestedClass, apiLevel, true) ;
+		
+	//list[ConstantField] constantsAndFields = getConstantsAndFields(classConstructs["constants"] + classConstructs["fields"]);
+	//list[ConstantField] constantsAndFields = getConstantsAndFields2(getClassCons(classHtml,"constants") + getClassCons(classHtml,"lfields"), apiLevel);
+	list[Method] methods = getMethods2(classConstructs["methods"],apiLevel);// + getMethods2(getClassCons(classHtml, "promethods"), apiLevel);
+	//list[Method] methods = getMethods(classConstructs["methods"]);
 
 	// Fix bug in documentation: some interface implement interfaces, which isn't possible in Java (see: http://developer.android.com/reference/org/xml/sax/ext/Attributes2.html)
 	if (classType == "interface") {
@@ -135,11 +149,87 @@ private Maybe[Class] getClass(loc url, str packagePath, int apiLevel, bool accep
 
 	list[str] enumValues = [];
 	if (classType == "enum") {
-		enumValues = getEnumValues(classConstructs["enumValues"]);
+		enumValues = getEnumValues2(getClassCons(classHtml,"enumconstants"),apiLevel);
 	}
 	return just(class(packagePath, classType, className, classModifiers, classSuperClass, classInterfaces, isDeprecated, constantsAndFields, constructors, methods, [], enumValues));
 }
 
+public list[Constructor] getConstructors2(list[list[node]] constructorNodes, bool acceptNestedClass, int apiLevel, bool protected){
+	list[Constructor] constructors = [];
+	
+	for(c <- constructorNodes)
+	{
+		str constructorSignature = "";
+		str sig = getConstructSign(c, apiLevel);
+		if(protected){constructorSignature = "protected " + sig;}
+		else{constructorSignature = "public " + sig;}
+		println("WaaaaConstructor + <sig>");
+		constructorAst = parse(#ConstructDef, constructorSignature);
+		str constructorName = getConstructName(constructorAst);
+		str constructorModifiers = getConstructModifiers(constructorAst);
+		list[Argument] constuctorArguments = getConstructArguments(constructorAst);
+		bool isDeprecated = isConstructDeprecated(constructorNode);
+
+		// Fix constructor name for inner classes
+		if(acceptNestedClass && contains(constructorName, ".")) {
+			constructorName = substring(constructorName, findLast(constructorName, ".") + 1, size(constructorName));
+		}
+
+		constructors += constructor(constructorName, constructorModifiers, constuctorArguments, isDeprecated);
+	}
+	return constructors;
+}
+
+public list[Method] getMethods2(list[node] methodNodes, int apiLevel) {
+	list[Method] methods = [];
+	
+	println(size(methodNodes));
+	for(methodNode <- methodNodes) {
+		str methodSignature = getConstructSign(methodNode, apiLevel);
+		//if(protected){str methodSignature = "protected " + sig;}
+		//else{str methodSignature = "public " + sig;}
+		println("WaaaaM + <methodSignature>");
+		methodAst = parse(#ConstructDef, methodSignature);
+		str methodName = getConstructName(methodAst);
+		str methodModifiers = getConstructModifiers(methodAst);
+		Type methodReturnType = getConstructType(methodAst);
+		list[Argument] methodArguments = getConstructArguments(methodAst);
+		bool isDeprecated = isConstructDeprecated(methodNode);
+		methods += method(methodName, methodModifiers, methodReturnType, methodArguments, isDeprecated);
+	}
+	return methods;
+}
+public str getConstructSign(node con, int apiLevel){
+	println("apiLevel <apiLevel>");
+	println("node: <con>");
+	str sig = "";
+	visit(con){
+		case tr:"tr"(td_content): if((tr@class ? "") != ""){
+			if(/.*-<lvl:[0-9]+>/ := tr@class){
+				int constructApiLevel = toInt(lvl);
+				println("clevel = <constructApiLevel>");
+		 		if(constructApilevel <= apiLevel){
+		 			visit(td_content){
+			 			case td:"td"(content):if((td@class ? "" ) == "jd-typecol"){
+			 				visit(content){
+			 					case text:"text"(t) : sig += (t + " ");
+			 					case alink:"a"(linkToTypes): if ((alink@href ? "") != "") sig += " " + cleanUrl(alink@href) + " ";
+			 					}
+			 			}
+			 			case td2:"td"(content_2):if((td@class ? "" ) == "jd-linkcol"){
+			 					visit(content_2){
+			 						case text2:"text"(t2) : sig += (t2 + " ");
+			 						
+			 					}
+						}
+					}
+				}
+			}
+		}
+	}
+	println("SIG <sig>");
+	return sig;
+}
 // Parses the constructors and returns them in the needed type for creating the templates
 public list[Constructor] getConstructors(list[list[node]] constructorNodes, bool acceptNestedClass) {
 	list[Constructor] constructors = [];
@@ -161,6 +251,24 @@ public list[Constructor] getConstructors(list[list[node]] constructorNodes, bool
 	}
 	return constructors;
 }
+
+public list[ConstantField] getConstantsAndFields2(list[node] constantsAndFieldsNodes, int apiLevel)
+{
+	list[ConstantField] constantsAndFields = [];
+		// Get constants and fields
+		for(constantOrFieldNode <- constantsAndFieldsNodes){
+			str constantSignature = "public " + getConstructSign(constantOrFieldNode, apiLevel);
+			println("WaaaaC + <constantSignature>");
+			constantAst = parse(#ConstructDef, constantSignature);
+			str constantName = getConstructName(constantAst);
+			str constantModifiers =  getConstructModifiers(constantAst);
+			Type contantType = getConstructType(constantAst);
+			bool isDeprecated = isConstructDeprecated(constantOrFieldNode);
+			constantsAndFields += constantField(constantName, constantModifiers, contantType, isDeprecated);
+		}
+	return constantsAndFields;
+}
+
 
 // Parses the constants and fields and returns them in the needed type for creating the templates
 public list[ConstantField] getConstantsAndFields(list[list[node]] constantsAndFieldsNodes) {
@@ -195,10 +303,10 @@ public list[Method] getMethods(list[list[node]] methodNodes) {
 	return methods;
 }
 
-public list[str] getEnumValues(list[list[node]] enumValueNodes) {
+public list[str] getEnumValues2(list[node] enumValueNodes, apiLevel) {
 	list[str] enumValues = [];
 	for (enumValueNode <- enumValueNodes) {
-		str enumValueSignature = getConstructSignature(enumValueNode);
+		str enumValueSignature = "public "+ getConstructSig(enumValueNode, apiLevel);
 		enumValueAst = parse(#ConstructDef, enumValueSignature);
 		enumValues += getConstructName(enumValueAst);
 	}
@@ -363,6 +471,36 @@ public int getClassAPI(loc classURL) {
 	return 1; // if there is no apilevel in the sourcecode it will be considered as lvl 1
 }
 
+public list[node] getClassCons(node classHTML, str constr,int apiLevel)
+{	
+	//println("get here + <classHTML> \n + <constr>");
+	str construct;
+	list[node] method = [];
+	//int constructApiLevel;
+	visit(classHTML){
+		case table:"table"(table_content): if((table@id ? "") == constr) {
+			println(table_content);
+			visit(table_content) {
+				case tr:"tr"(tr_content): if((tr@class ? "") != ""){
+					if(/.*-<lvl:[0-9]+>/ := tr@class){
+						int constructApiLevel = toInt(lvl);
+						println("clevel = <constructApiLevel>");
+						text(tr_content);
+						if(constructApiLevel <= apiLevel)
+						{
+							method += tr_content;
+						}
+					}
+				}					
+			}
+		}
+		
+	}
+	println("methode: <method>");
+	return method;
+}
+
+	 
 public map[str, list[list[node]]] getClassConstructs(node classHtml, int apiLevel) {
 	list[list[node]] methods = [];
 	list[list[node]] constants = [];
@@ -568,7 +706,7 @@ public bool isClassDeprecated(node classHtml) {
 	return false;
 }
 
-private bool isConstructDeprecated(list[node] constructNodes){
+private bool isConstructDeprecated(node constructNodes){
 	visit(constructNodes){
 		case "deprecated"(isDeprecated):{
 			return isDeprecated;

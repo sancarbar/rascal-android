@@ -14,7 +14,7 @@ data Constructor = constructor(str name, str modifiers, list[Argument] arguments
 data Argument = argument(str name, Type argType);
 
 // Creates Java file
-public void createClassFile(str packagePath, Class class, loc eclipseProject = |project://Android/src|) {
+public void createClassFile(str packagePath, Class class, loc eclipseProject = |project://Propper/src|) {
 	str packageName = replaceAll(packagePath, "/", ".");
 	list[str] parts = split(".", packageName);
 	loc packageLoc = eclipseProject + parts[0] ;
@@ -160,7 +160,7 @@ private str genMethod(Method method) {
 	return 
 		"
 		'<if (method.isDeprecated) {>\t@Deprecated<}>
-		'\t<method.modifiers> <printType(method.returnType)> <method.name>(<genArgumentsString(method.arguments)>)<genMethodBody(method.modifiers, method.returnType)>;";
+		'\t<method.modifiers> <genTypeParameters(method.arguments)> <printType(method.returnType)> <method.name>(<genArgumentsString(method.arguments)>)<genMethodBody(method.modifiers, method.returnType)>;";
 }
 
 private str genMethodBody(str modifiers, Type returnType) {
