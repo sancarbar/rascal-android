@@ -89,6 +89,15 @@ private list[Type] getTypes(Class class) {
 	return types;
 }
 
+private list[Type] getTypes(Method method) {
+	list[Type] types = [];
+	types += method.returnType;
+	for (argument <- method.arguments) {
+		types += argument.argType;
+	}
+	return types;
+}
+
 private list[Type] getNestedClassesTypes(list[Class] nestedClasses) {
 	return ([] | it + getTypes(nestedClass) | nestedClass <- nestedClasses);
 }
@@ -98,8 +107,32 @@ private str genImports(list[Type] types, str className) = intercalate("\n", dup(
 
 // Helper function to generate the type parameters
 private str genTypeParameters(list[Type] types) {
-	list[str] typeParameters = dup([ aType.typeParameterName | aType <- types, aType is \typeParameter ]);
+	list[str] typeParameters = dup(([] | it + getTypeParameter(aType) | aType <- types));
+	if (indexOf(typeParameters, "?") >= 0) {
+		typeParameters = delete(typeParameters, indexOf(typeParameters, "?"));
+	}
 	return size(typeParameters) > 0 ? "\<<intercalate(",", typeParameters)>\>" : "";
+}
+
+// Helper function to get the type parameters
+private list[str] getTypeParameter(Type aType) {
+	switch (aType) {
+		case \void(): return [];
+		case \primitive(str typeName): return [];
+		case \type(str packageName, str typeName): return [];
+		case \type(str packageName, str typeName, list[Generic] generics): return ([] | it + getTypeParameter(generic) | generic <- generics);
+		case \typeParameter(str typeParameterName): return [typeParameterName];
+		case \array(Type arrayType): return [];
+	}
+}
+
+// Helper function to get the type parameters
+private list[str] getTypeParameter(Generic generic) {
+	switch (generic) {
+		case simpleGeneric(Type genericType): return getTypeParameter(genericType);
+		case extendsGeneric(Type baseType, Type extendsType): return getTypeParameter(baseType) + getTypeParameter(extendsType);
+		case superGeneric(Type baseType, Type superType): return getTypeParameter(baseType) + getTypeParameter(superType);
+	}
 }
 
 // Helper function to generate an import
@@ -160,7 +193,7 @@ private str genMethod(Method method) {
 	return 
 		"
 		'<if (method.isDeprecated) {>\t@Deprecated<}>
-		'\t<method.modifiers> <printType(method.returnType)> <method.name>(<genArgumentsString(method.arguments)>)<genMethodBody(method.modifiers, method.returnType)>;";
+		'\t<method.modifiers> <genTypeParameters(getTypes(method))> <printType(method.returnType)> <method.name>(<genArgumentsString(method.arguments)>)<genMethodBody(method.modifiers, method.returnType)>;";
 }
 
 private str genMethodBody(str modifiers, Type returnType) {
